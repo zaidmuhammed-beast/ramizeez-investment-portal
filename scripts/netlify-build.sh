@@ -3,8 +3,16 @@
 # super admin (only while SEED_ADMIN_PASSWORD is set), then build the Next.js app.
 set -euo pipefail
 
-# Netlify DB (Neon) provides these; migrations need the direct (unpooled) connection.
-export DATABASE_URL="${DATABASE_URL:-${NETLIFY_DATABASE_URL_UNPOOLED:-${NETLIFY_DATABASE_URL:-}}}"
+# Find the database connection (DATABASE_URL, or the one Netlify's database integration
+# provides). Migrations use the direct, unpooled connection when there is one.
+DB_LOOKUP=$(npx --yes tsx -e '
+import { findDatabaseUrl } from "./src/lib/database-url";
+const direct = findDatabaseUrl(process.env, true);
+const names = Object.keys(process.env).filter((k) => /DATABASE|POSTGRES|NEON|_DB_|^DB_/.test(k)).sort();
+console.error(`Database-related variables present: ${names.join(", ") || "none"}`);
+if (direct) { console.error(`Using ${direct.name} for migrations`); console.log(direct.url); }
+')
+export DATABASE_URL="${DB_LOOKUP:-}"
 
 # Check every required setting first, so a misconfigured site fails here with a clear list
 # instead of deploying and then erroring on every page.

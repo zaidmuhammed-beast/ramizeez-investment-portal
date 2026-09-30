@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { findDatabaseUrl } from "./database-url";
 
 const key32 = z
   .string()
@@ -17,7 +18,7 @@ const opt = z
 
 const schema = z
   .object({
-    DATABASE_URL: z.preprocess((v) => v || process.env.NETLIFY_DATABASE_URL, z.string().min(1)),
+    DATABASE_URL: z.preprocess((v) => v || findDatabaseUrl(process.env)?.url, z.string().min(1, "set DATABASE_URL, or connect a database to the site")),
     DATA_ENCRYPTION_KEY: key32,
     BLIND_INDEX_KEY: key32,
     // On Netlify, the site's primary URL is provided as URL; APP_URL overrides it (e.g. a custom domain).

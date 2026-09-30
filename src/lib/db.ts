@@ -1,10 +1,11 @@
 import "server-only";
 import { PrismaClient } from "@prisma/client";
+import { findDatabaseUrl } from "./database-url";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-// Netlify DB (Neon) provides NETLIFY_DATABASE_URL; any other Postgres uses DATABASE_URL.
-const datasourceUrl = serverlessUrl(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL);
+// DATABASE_URL, or whatever the host (e.g. Netlify's database integration) provides.
+const datasourceUrl = serverlessUrl(findDatabaseUrl(process.env)?.url);
 
 /** Through a PgBouncer-style pooler (e.g. Neon's "-pooler" host), Prisma needs pgbouncer mode and one connection per function. */
 function serverlessUrl(raw: string | undefined) {
