@@ -30,8 +30,9 @@ Migrations run automatically on every deploy (`prisma migrate deploy`).
 
 ## 3. Set environment variables
 
-Set these under **Project configuration → Environment variables**. Mark the keys and passwords
-as secret.
+Set these under **Project configuration → Environment variables**. Mark only the keys, the
+database URL and passwords as secret. Ordinary settings like `APP_ENV` don't need it (the build
+tells Netlify's secret scanner to ignore them either way).
 
 | Variable | Value |
 |----------|-------|

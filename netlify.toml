@@ -7,6 +7,10 @@
 [build.environment]
   NODE_VERSION = "22"
   NEXT_TELEMETRY_DISABLED = "1"
+  # These are ordinary settings, not secrets: their values ("staging", "netlify-blobs", "true"…)
+  # appear in the code and docs, so Netlify's secret scanner must not treat them as secrets.
+  # Real secrets (keys, DATABASE_URL, passwords) are still scanned.
+  SECRETS_SCAN_OMIT_KEYS = "APP_ENV,STORAGE_DRIVER,MAX_UPLOAD_MB,DEV_SHOW_OTP,KYC_ALLOW_FILE_UPLOAD,HIBP_CHECK,SEED_ADMIN_EMAIL,EMAIL_PROVIDER,SMS_PROVIDER,VIDEO_PROVIDER,KYC_PROVIDER,JITSI_BASE_URL,APP_URL"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
