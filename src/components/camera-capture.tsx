@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { shrinkImage } from "@/lib/client/shrink-image";
 import { Button } from "./ui/button";
 import { cn } from "./ui/cn";
 
@@ -84,9 +85,10 @@ export function CameraCapture({
     );
   }
 
-  function onFile(file: File | undefined) {
+  async function onFile(file: File | undefined) {
     if (!file) return;
-    onChange({ blob: file, url: URL.createObjectURL(file), live: false });
+    const blob = await shrinkImage(file);
+    onChange({ blob, url: URL.createObjectURL(blob), live: false });
   }
 
   return (

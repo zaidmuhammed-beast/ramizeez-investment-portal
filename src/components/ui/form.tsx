@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useId, type ComponentProps, type ReactNode } from "react";
+import { createContext, useContext, useId, useState, type ComponentProps, type ReactNode, type SubmitEvent } from "react";
 import type { FormState } from "@/lib/form-state";
+import { MAX_SUBMISSION_BYTES, megabytes, totalFileBytes } from "@/lib/client/shrink-image";
 import { cn } from "./cn";
 import { Alert } from "./alert";
 
@@ -12,11 +13,25 @@ export function Form({
   action,
   children,
   className,
+  onSubmit,
   ...props
 }: Omit<ComponentProps<"form">, "action"> & { state: FormState; action?: (fd: FormData) => void }) {
+  const [tooLarge, setTooLarge] = useState<string>();
+  // Uploads over the host's request limit would fail with a bare error page; stop them here instead.
+  const guard = (e: SubmitEvent<HTMLFormElement>) => {
+    const total = totalFileBytes(new FormData(e.currentTarget));
+    if (total > MAX_SUBMISSION_BYTES) {
+      e.preventDefault();
+      setTooLarge(`These files add up to ${megabytes(total)}. Upload at most ${megabytes(MAX_SUBMISSION_BYTES)} at a time: remove some, or save in smaller batches.`);
+      return;
+    }
+    setTooLarge(undefined);
+    onSubmit?.(e);
+  };
   return (
     <FormContext.Provider value={state}>
-      <form action={action} className={cn("space-y-5", className)} noValidate {...props}>
+      <form action={action} className={cn("space-y-5", className)} noValidate onSubmit={guard} {...props}>
+        {tooLarge && <Alert tone="error">{tooLarge}</Alert>}
         {state.message && (
           <Alert tone={state.ok ? "success" : "error"} role={state.ok ? "status" : "alert"}>
             {state.message}

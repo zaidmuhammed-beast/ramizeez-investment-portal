@@ -17,13 +17,18 @@ const opt = z
 
 const schema = z
   .object({
-    DATABASE_URL: z.string().min(1),
+    DATABASE_URL: z.preprocess((v) => v || process.env.NETLIFY_DATABASE_URL, z.string().min(1)),
     DATA_ENCRYPTION_KEY: key32,
     BLIND_INDEX_KEY: key32,
-    APP_URL: z.string().url().default("http://localhost:3000"),
+    // On Netlify, the site's primary URL is provided as URL; APP_URL overrides it (e.g. a custom domain).
+    APP_URL: z.string().url().default(process.env.URL ?? "http://localhost:3000"),
     KYC_PROVIDER: z.enum(["internal"]).default("internal"),
     KYC_ALLOW_FILE_UPLOAD: bool,
+    // Where encrypted uploads are kept: "local" disk (STORAGE_DIR) or "netlify-blobs".
+    STORAGE_DRIVER: z.enum(["local", "netlify-blobs"]).default(process.env.NETLIFY || process.env.NETLIFY_BLOBS_CONTEXT ? "netlify-blobs" : "local"),
     STORAGE_DIR: z.string().default("./storage"),
+    // Per-file upload limit. Keep it at 4 or less on Netlify (its functions reject requests over ~6 MB).
+    MAX_UPLOAD_MB: z.coerce.number().min(1).max(50).default(process.env.NETLIFY ? 4 : 8),
     DEV_SHOW_OTP: bool,
     HIBP_CHECK: bool,
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

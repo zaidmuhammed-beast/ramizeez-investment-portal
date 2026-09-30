@@ -1,0 +1,13 @@
+# Netlify deployment. Secrets and settings go in Site configuration → Environment variables
+# (see docs/07-deploying-to-netlify.md), never in this file.
+[build]
+  command = "bash scripts/netlify-build.sh"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+

@@ -307,7 +307,7 @@ export function MediaForm({ pitchId, videoUrl, deck, images, documents }: { pitc
     <Form state={state} action={action}>
       <div className="space-y-2">
         {list(deck ? [deck] : [])}
-        <FilePicker name="deck" label={deck ? "Replace pitch deck" : "Pitch deck"} accept="application/pdf" hint="PDF, up to 8 MB. Required." />
+        <FilePicker name="deck" label={deck ? "Replace pitch deck" : "Pitch deck"} accept="application/pdf" hint="PDF, up to 4 MB. Required." />
       </div>
       <div className="space-y-2">
         {list(images)}

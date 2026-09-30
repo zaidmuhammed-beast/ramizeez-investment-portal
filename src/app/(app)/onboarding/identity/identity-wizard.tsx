@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useRef, useState, type FormEvent } from "react";
+import { MAX_SUBMISSION_BYTES, megabytes, shrinkImage, totalFileBytes } from "@/lib/client/shrink-image";
 import { initialFormState } from "@/lib/form-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -74,9 +75,14 @@ export function IdentityWizard({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const proof = fd.get("proofOfAddress");
+    if (proof instanceof File && proof.size > 0) {
+      const small = await shrinkImage(proof);
+      if (small !== proof) fd.set("proofOfAddress", new File([small], "proof-of-address.jpg", { type: small.type }));
+    }
     if (front) fd.set("front", new File([front.blob], "front.jpg", { type: front.blob.type }));
     fd.set("front_live", front?.live ? "1" : "0");
     if (back && !isPassport) {
@@ -91,6 +97,11 @@ export function IdentityWizard({
         fd.set(`selfie_${i}`, new File([f.blob], `selfie_${i}.jpg`, { type: f.blob.type }));
         fd.set(`selfie_${i}_live`, f.live ? "1" : "0");
       });
+    }
+    const total = totalFileBytes(fd);
+    if (total > MAX_SUBMISSION_BYTES) {
+      setLocalError(`Your photos and documents add up to ${megabytes(total)}, more than we can accept at once (${megabytes(MAX_SUBMISSION_BYTES)}). Use a smaller proof-of-address file, for example a photo instead of a scanned PDF.`);
+      return;
     }
     startTransition(() => formAction(fd));
   }
@@ -228,7 +239,7 @@ export function IdentityWizard({
                 className="field-control file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:text-white"
               />
               <p className="text-xs text-slate-400">
-                A utility bill, bank statement or government letter from the last 3 months that shows your name and this address. PDF or photo, up to 8 MB.
+                A utility bill, bank statement or government letter from the last 3 months that shows your name and this address. PDF or photo (photos are resized automatically).
               </p>
               {state.errors?.proofOfAddress && <p className="text-xs text-rose-300">{state.errors.proofOfAddress}</p>}
             </div>

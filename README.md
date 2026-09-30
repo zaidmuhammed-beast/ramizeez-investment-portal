@@ -14,6 +14,7 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
 | 4 | [Investor portal & idea protection](docs/04-investor-portal-and-idea-protection.md) | Budget-based matching, staged disclosure, NDAs, watermarking, anti-copy controls |
 | 5 | [Admin & team portal](docs/05-admin-and-team-portal.md) | Team roles, review queues, deal pipeline, agreements, execution tracking |
 | 6 | [Architecture, security & roadmap](docs/06-architecture-and-roadmap.md) | Tech stack, data protection, compliance, phased delivery, decisions |
+| 7 | [Deploying to Netlify](docs/07-deploying-to-netlify.md) | Database, environment variables, first deploy, staging vs production |
 
 ## What's built
 

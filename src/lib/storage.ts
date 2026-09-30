@@ -1,13 +1,35 @@
 import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getStore } from "@netlify/blobs";
 import type { FileKind, StoredFile } from "@prisma/client";
 import { db } from "./db";
 import { env } from "./env";
 import { dataKey } from "./keys";
 import { decryptBuffer, encryptBuffer, randomToken, sha256Hex } from "./crypto";
 
-export const MAX_FILE_BYTES = 8 * 1024 * 1024;
+export const maxFileBytes = () => env().MAX_UPLOAD_MB * 1024 * 1024;
+
+/** Encrypted file bodies. Files are encrypted before they reach either backend. */
+const backend = {
+  async put(key: string, body: Buffer) {
+    if (env().STORAGE_DRIVER === "netlify-blobs") {
+      await getStore({ name: "uploads", consistency: "strong" }).set(key, new Uint8Array(body).buffer);
+      return;
+    }
+    const dir = path.resolve(env().STORAGE_DIR);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, key), body, { mode: 0o600 });
+  },
+  async get(key: string): Promise<Buffer> {
+    if (env().STORAGE_DRIVER === "netlify-blobs") {
+      const data = await getStore({ name: "uploads", consistency: "strong" }).get(key, { type: "arrayBuffer" });
+      if (!data) throw new Error(`Stored file ${key} is missing`);
+      return Buffer.from(data);
+    }
+    return readFile(path.join(path.resolve(env().STORAGE_DIR), key));
+  },
+};
 
 // Detect the real type from magic bytes — the browser-supplied MIME type is not trusted.
 export function sniffMime(buf: Buffer): string | null {
@@ -32,7 +54,7 @@ export async function saveFile(opts: {
 }): Promise<StoredFile> {
   const { file } = opts;
   if (file.size === 0) throw new FileRejected("The file is empty");
-  if (file.size > MAX_FILE_BYTES) throw new FileRejected("Files must be 8 MB or smaller");
+  if (file.size > maxFileBytes()) throw new FileRejected(`Files must be ${env().MAX_UPLOAD_MB} MB or smaller`);
   const buf = Buffer.from(await file.arrayBuffer());
   const mime = sniffMime(buf);
   const okImage = opts.allow.includes("image") && mime?.startsWith("image/");
@@ -45,9 +67,7 @@ export async function saveFile(opts: {
   }
 
   const storageKey = randomToken(24);
-  const dir = path.resolve(env().STORAGE_DIR);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, storageKey), encryptBuffer(buf, dataKey()), { mode: 0o600 });
+  await backend.put(storageKey, encryptBuffer(buf, dataKey()));
 
   return db.storedFile.create({
     data: {
@@ -64,6 +84,5 @@ export async function saveFile(opts: {
 }
 
 export async function readStoredFile(file: StoredFile): Promise<Buffer> {
-  const blob = await readFile(path.join(path.resolve(env().STORAGE_DIR), file.storageKey));
-  return decryptBuffer(blob, dataKey());
+  return decryptBuffer(await backend.get(file.storageKey), dataKey());
 }

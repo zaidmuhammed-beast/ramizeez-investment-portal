@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import { BRAND } from "@/config/brand";
 import { dirOf } from "@/i18n/config";
 import { getLocale } from "@/i18n/server";
+import { env } from "@/lib/env";
 // Only the Arabic-script subset: it downloads only when Urdu text is on screen.
 import "@fontsource/noto-nastaliq-urdu/arabic-400.css";
 import "@fontsource/noto-nastaliq-urdu/arabic-700.css";
@@ -33,6 +34,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <div aria-hidden className="orb -left-40 top-24 size-[28rem] bg-brand-500" />
         <div aria-hidden className="orb -right-32 top-1/3 size-[26rem] bg-violet-600" />
         <div aria-hidden className="orb bottom-0 left-1/3 size-[22rem] bg-sky-500 opacity-20" />
+        {env().APP_ENV === "staging" && (
+          <div role="note" className="relative z-20 bg-amber-400/90 px-4 py-1.5 text-center text-xs font-medium text-ink-950">
+            {locale === "ur"
+              ? "آزمائشی ماحول: اصلی شناختی دستاویزات یا مالی معلومات درج نہ کریں۔ یہاں کوئی حقیقی سرمایہ کاری نہیں ہوتی۔"
+              : "Test environment: don't enter real ID documents or financial details. No real investments happen here."}
+          </div>
+        )}
         <div className="relative z-10">{children}</div>
         <ServiceWorkerRegistration />
       </body>

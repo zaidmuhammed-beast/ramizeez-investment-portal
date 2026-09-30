@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { shrinkImage } from "@/lib/client/shrink-image";
 import { Button } from "./ui/button";
 import type { Capture } from "./camera-capture";
 
@@ -95,10 +96,11 @@ export function LivenessCapture({
     }, 1000);
   }
 
-  function onUpload(i: number, file: File | undefined) {
+  async function onUpload(i: number, file: File | undefined) {
     if (!file || !challenge) return;
+    const blob = await shrinkImage(file, 1280);
     const next = [...frames];
-    next[i] = { blob: file, url: URL.createObjectURL(file), live: false };
+    next[i] = { blob, url: URL.createObjectURL(blob), live: false };
     setFrames(next);
     if (next.filter(Boolean).length === challenge.prompts.length) finish(next, challenge);
   }
