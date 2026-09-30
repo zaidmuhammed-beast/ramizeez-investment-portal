@@ -135,6 +135,14 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
               </ol>
             </Card>
             {pitch.status === "LISTED" && (
+              <Card strong>
+                <Link href={`/pitches/${pitch.id}/deal`} className="font-medium text-brand-300 hover:text-brand-200">
+                  Open the deal room →
+                </Link>
+                <p className="mt-1 text-xs text-slate-400">Offers, investor questions, agreements, escrow and milestones.</p>
+              </Card>
+            )}
+            {pitch.status === "LISTED" && (
               <InvestorInterest pitchId={pitch.id} audience="FOUNDER" renderDecision={(id) => <AccessDecisionButtons requestId={id} />} />
             )}
             {latest && <FingerprintCard version={latest.version} fingerprint={latest.fingerprint} submittedAt={latest.submittedAt} />}

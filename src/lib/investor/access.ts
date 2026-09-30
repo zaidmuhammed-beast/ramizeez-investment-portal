@@ -69,16 +69,19 @@ export async function pitchAccess(user: CurrentUser, pitchId: string) {
       ndaSignatures: { where: { investorId: user.id } },
       accessRequests: { where: { investorId: user.id } },
       watchers: { where: { investorId: user.id } },
+      deal: { select: { status: true } },
     },
   });
   if (!ctx || !ctx.ready || !ctx.prefs || !pitch) return { ctx, pitch: null, level: "NONE" as Level, match: null };
+  // Once a round stops collecting commitments, only investors who already unlocked it keep access.
+  const roundOpen = !pitch.deal || pitch.deal.status === "OPEN";
   const match = matchPitch(user.id, ctx.prefs, matchable(pitch));
   const nda = pitch.ndaSignatures[0] ?? null;
   const request = pitch.accessRequests[0] ?? null;
   let level: Level = "NONE";
   if (request?.status === "APPROVED" && ctx.tier >= 4) level = "FULL";
   else if (nda) level = "SUMMARY";
-  else if (match.eligible) level = "TEASER";
+  else if (match.eligible && roundOpen) level = "TEASER";
   return { ctx, pitch, level, match, nda, request, watching: pitch.watchers.length > 0 };
 }
 
@@ -106,10 +109,11 @@ export async function listOpportunities(user: CurrentUser, prefs: InvestorPrefs,
       ndaSignatures: { where: { investorId: user.id }, select: { id: true } },
       accessRequests: { where: { investorId: user.id }, select: { status: true } },
       watchers: { where: { investorId: user.id }, select: { pitchId: true } },
+      deal: { select: { status: true } },
     },
   });
   return pitches
     .map((p) => ({ pitch: p, match: matchPitch(user.id, prefs, matchable(p)) as Match }))
-    .filter(({ pitch, match }) => (match.eligible && (all || match.preferred)) || pitch.ndaSignatures.length > 0)
+    .filter(({ pitch, match }) => (match.eligible && (all || match.preferred) && (!pitch.deal || pitch.deal.status === "OPEN")) || pitch.ndaSignatures.length > 0)
     .sort((a, b) => b.match.fit - a.match.fit || (b.pitch.screeningScore ?? 0) - (a.pitch.screeningScore ?? 0));
 }

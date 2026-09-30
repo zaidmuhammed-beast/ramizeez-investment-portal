@@ -17,23 +17,31 @@ export type Permission =
   | "outbox.view"
   | "pitches.view"
   | "pitches.screen"
-  | "pitches.approve";
+  | "pitches.approve"
+  | "deals.view"
+  | "deals.moderate"
+  | "deals.legal"
+  | "deals.execution"
+  | "escrow.record"
+  | "escrow.approve";
 
 const ALL: Permission[] = [
   "cases.view", "cases.decide.identity", "cases.decide.role", "cases.decide.final", "kyc.files.view",
   "users.view", "users.suspend", "team.manage", "watchlist.manage", "audit.view", "outbox.view",
   "pitches.view", "pitches.screen", "pitches.approve",
+  "deals.view", "deals.moderate", "deals.legal", "deals.execution", "escrow.record", "escrow.approve",
 ];
 
 // Least privilege: each team role only gets what its job needs.
 const MATRIX: Record<TeamRole, Permission[]> = {
   SUPER_ADMIN: ALL,
   VERIFICATION_OFFICER: ["cases.view", "cases.decide.identity", "cases.decide.role", "kyc.files.view", "users.view", "watchlist.manage", "outbox.view"],
-  INVESTMENT_COMMITTEE: ["cases.view", "cases.decide.final", "users.view", "pitches.view", "pitches.approve"],
-  DEAL_ANALYST: ["users.view", "pitches.view", "pitches.screen"],
-  LEGAL: ["users.view", "audit.view", "pitches.view"],
-  FINANCE: ["users.view", "pitches.view"],
-  EXECUTION_MANAGER: ["users.view"],
+  INVESTMENT_COMMITTEE: ["cases.view", "cases.decide.final", "users.view", "pitches.view", "pitches.approve", "deals.view"],
+  DEAL_ANALYST: ["users.view", "pitches.view", "pitches.screen", "deals.view", "deals.moderate"],
+  LEGAL: ["users.view", "audit.view", "pitches.view", "deals.view", "deals.legal"],
+  // Finance can both record and approve, but never approve an entry they recorded themselves.
+  FINANCE: ["users.view", "pitches.view", "deals.view", "escrow.record", "escrow.approve"],
+  EXECUTION_MANAGER: ["users.view", "pitches.view", "deals.view", "deals.execution"],
   MARKETING: [],
   SUPPORT: ["users.view", "outbox.view"],
 };

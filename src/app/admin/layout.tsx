@@ -8,6 +8,7 @@ const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/cases", label: "Verification queue", permission: "cases.view" },
   { href: "/admin/pitches", label: "Pitches", permission: "pitches.view" },
+  { href: "/admin/deals", label: "Deals", permission: "deals.view" },
   { href: "/admin/users", label: "Users", permission: "users.view" },
   { href: "/admin/team", label: "Team", permission: "team.manage" },
   { href: "/admin/watchlist", label: "Watchlist", permission: "watchlist.manage" },

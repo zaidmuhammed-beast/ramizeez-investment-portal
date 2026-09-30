@@ -2,7 +2,7 @@
 
 A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (people with a startup idea or an existing business that needs capital) with **verified investors** in Pakistan, overseas Pakistanis and foreign investors. RamiZeeZ sits in the middle as the trusted intermediary. It verifies everyone, screens every pitch, protects founders' ideas, and manages agreements, execution and marketing once a deal closes.
 
-> **Status:** Phases 1–4 are built: secure accounts, the team portal, the full tiered verification (KYC) system, the pitch builder with its screening pipeline, and the investor portal with idea protection. Deals (Phase 5: Q&A, offers, agreements, escrow) are next.
+> **Status:** Phases 1–5 are built: secure accounts, the team portal, the full tiered verification (KYC) system, the pitch builder with its screening pipeline, the investor portal with idea protection, and deals (moderated Q&A, offers and counter-offers, e-signed term sheets and agreements, a maker-checker escrow ledger and milestone releases). Phase 6 (live Tank sessions, execution and marketing, investor reports) is next.
 
 ## Design documents
 
@@ -54,6 +54,25 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
 - A screening scorecard (6 criteria), a 6-item due-diligence checklist, and an anonymous investor teaser.
 - Return or reject with feedback the founder sees. A returned pitch can be edited and resubmitted as a new version.
 - Listing requires a Tier 4 founder, a teaser, and a committee approver who didn't screen the pitch or run its due diligence (four-eyes rule).
+
+**Deals (`/investments`, `/pitches/[id]/deal`, `/admin/deals`)**
+- **Moderated Q&A.** Investors with data-room access ask questions. Contact details are stripped, and the team approves each question before the founder sees it. Founders can share an answer with every data-room investor.
+- **Offers and counter-offers** in the pitch's own structure:
+  - Equity: % and pre-money valuation.
+  - Musharakah / Mudarabah: profit share and term.
+  - Revenue share: %, repayment cap and term.
+  The PKR 100,000 minimum, the pitch's minimum ticket, the round's remaining capacity, single-investor rounds and the investor's verified budget are all enforced. Founders see investors only as "Investor 1, 2…".
+- **Term sheet, then agreement.** Accepting an offer opens the round and issues a term sheet. Once all three parties have signed it (investor, founder, RamiZeeZ legal), legal issues the investment agreement from a structure-specific template (`src/config/agreements.ts`, a **draft for legal and Shariah review**).
+  - Signing uses a typed legal name, which must match the verified name, plus consent.
+  - Each document is fingerprinted with SHA-256, and a signature is refused if the text has changed.
+  - Documents download as PDFs with the signature log.
+- **Escrow ledger** (manual, until a licensed bank or trustee is connected):
+  - Finance records deposits, releases and refunds against bank references.
+  - Each entry posts only when a **different** team member approves it (maker-checker).
+  - The round becomes **Funded** when every agreement is signed and every deposit posted. The 10% success fee is then queued automatically.
+  - An early close scales milestone releases to the amount raised.
+- **Milestone releases.** Founders submit evidence (text and files). The execution team approves it. Only then can finance release that milestone's budget, and never more than it.
+- Once a round stops taking commitments, it disappears from new investors' feeds.
 
 **Team portal (`/admin`)**
 - A verification queue (oldest first) with each automated check's result, the ID images, the liveness frames next to their prompts, address proof, AML hits, internal notes, assignment and case history.
@@ -134,12 +153,12 @@ The app checks this configuration at startup and refuses to run if a chosen prov
 
 ```bash
 npm run typecheck && npm run lint
-npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, investor matching, disclosure & watermarking, encryption
+npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, investor matching, disclosure & watermarking, offer terms & capacity, escrow & round status, agreements & document PDFs, encryption
 npm run build && npm start  # then, in another terminal:
-npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, screened, listed → investor NDA, request, approval, watermarked data room
+npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, screened, listed → investor NDA, request, approval, watermarked data room → Q&A, offer, counter, term sheet & agreement signed by 3 parties, deposit + fee + milestone release with maker-checker
 ```
 
-The E2E test seeds its own fresh super admin on every run. If you're using a pre-installed Chromium, set `E2E_CHROMIUM_PATH`. Set `E2E_SCREENSHOTS=<dir>` to save screenshots.
+The E2E test seeds its own fresh super admin, a verified investor and a finance team member on every run. If you're using a pre-installed Chromium, set `E2E_CHROMIUM_PATH`. Set `E2E_SCREENSHOTS=<dir>` to save screenshots.
 
 ## Project structure
 
@@ -153,6 +172,8 @@ src/lib/auth/               sessions, passwords, TOTP, one-time codes, recovery 
 src/lib/kyc/                KYC provider interface, in-house checks, MRZ, CNIC, AML screening
 src/lib/pitch/              pitch completeness rules, deal maths, screening workflow, fingerprints
 src/lib/investor/           matching, disclosure levels, quotas & misuse flags, PDF watermarking, data-room access
+src/lib/deals/              offer terms & capacity, escrow ledger & round status, document PDFs, the deal service
+src/config/agreements.ts    term sheet & agreement templates (draft, versioned)
 src/components/ui/          glassmorphism design system (cards, forms, badges, buttons)
 tests/unit, tests/e2e       Vitest and Playwright
 ```
@@ -164,4 +185,5 @@ tests/unit, tests/e2e       Vitest and Playwright
 - Connect Sumsub (or NADRA Verisys through a licensed provider) and load official sanctions lists.
 - Move file storage to encrypted S3, and store the encryption keys in a managed key service with a rotation plan.
 - Move the in-memory rate limiter to Redis before running more than one app server.
+- Appoint a licensed bank or trustee for escrow and connect it (the ledger is manual until then). Have legal and a Shariah advisor finalise the agreement templates, and bump `AGREEMENT_TEMPLATE_VERSION`.
 - Publish the final Terms and Privacy Policy (`/legal/*` are placeholders), and run a penetration test.

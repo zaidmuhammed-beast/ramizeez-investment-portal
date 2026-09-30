@@ -15,4 +15,8 @@ export default function globalSetup() {
   // A second, already verified investor to browse the founder's listed pitch.
   const out = execFileSync("npx", ["tsx", "--env-file=.env", "tests/e2e/seed-investor.ts"], { encoding: "utf8" });
   process.env.E2E_INVESTOR = out.trim().split("\n").at(-1);
+
+  // A finance team member, so escrow entries can be approved by someone other than their recorder.
+  const finance = execFileSync("npx", ["tsx", "--env-file=.env", "tests/e2e/seed-team.ts", "FINANCE"], { encoding: "utf8" });
+  process.env.E2E_FINANCE = finance.trim().split("\n").at(-1);
 }

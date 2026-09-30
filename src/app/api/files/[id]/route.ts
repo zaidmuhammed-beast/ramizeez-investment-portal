@@ -16,7 +16,11 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/files/[id]">) {
   const isOwner = file.ownerId === session.userId;
   const isPitchFile = file.kind === "PITCH_DECK" || file.kind === "PITCH_IMAGE" || file.kind === "PITCH_DOCUMENT";
   // KYC officers see KYC documents; pitch reviewers see only pitch material.
-  const isReviewer = isPitchFile ? can(session.user, "pitches.view") : can(session.user, "kyc.files.view");
+  const isReviewer = isPitchFile
+    ? can(session.user, "pitches.view")
+    : file.kind === "MILESTONE_EVIDENCE"
+      ? can(session.user, "deals.view")
+      : can(session.user, "kyc.files.view");
   if (!isOwner && !isReviewer) return notFound();
   if (!isOwner) {
     await audit("file.viewed", { actorId: session.userId, targetType: "StoredFile", targetId: file.id, metadata: { ownerId: file.ownerId, kind: file.kind } });

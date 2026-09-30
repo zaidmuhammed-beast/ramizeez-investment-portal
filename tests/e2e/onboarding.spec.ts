@@ -98,7 +98,7 @@ async function decide(page: Page, caseName: string, decision: string, extra?: (p
   await expect(page.getByText(new RegExp(`${decision.toLowerCase().replace("_", " ")} by`))).toBeVisible();
 }
 
-test("founder-investor onboarding, pitch submission and listing", async ({ browser }) => {
+test("founder-investor onboarding, pitch, listing and a funded deal", async ({ browser }) => {
   const userCtx = await browser.newContext();
   const adminCtx = await browser.newContext();
   const committeeCtx = await browser.newContext();
@@ -562,6 +562,151 @@ test("founder-investor onboarding, pitch submission and listing", async ({ brows
   expect((await page.request.get(deckHref)).status()).toBe(404);
   await page.reload();
   await expect(page.getByText("Opened the data room")).toBeVisible();
+
+  // ── Phase 5: Q&A, negotiation, signatures, escrow and a milestone release ──
+  const finance = JSON.parse(process.env.E2E_FINANCE!) as { email: string; password: string; secret: string; name: string };
+  const fin = await (await browser.newContext()).newPage();
+  const dealRoom = `${pitchUrl}/deal`;
+  const opportunityUrl = inv2.url();
+  const founderName = fullName;
+  const adminName = "RamiZeeZ Admin";
+  const signed = (p: Page, name: string) => p.getByText(`✓ ${name}`, { exact: true });
+  const sign = async (p: Page, name: string, button = "Sign") => {
+    const before = await signed(p, name).count();
+    await p.getByLabel("Type your full legal name").fill(name);
+    await p.getByLabel(/I have read this document and agree to sign/).check();
+    await p.getByRole("button", { name: button, exact: true }).click();
+    await expect(signed(p, name)).toHaveCount(before + 1);
+  };
+
+  // A moderated question: contact details are stripped, the team passes it on, the founder answers for everyone.
+  await inv2.getByLabel("Ask the founder a question").fill("How many partner farms supply you today? Reach me on +44 7700 900123.");
+  await inv2.getByRole("button", { name: "Send question" }).click();
+  await expect(inv2.getByText("With RamiZeeZ for review")).toBeVisible();
+  await admin.goto("/admin/deals");
+  const pending = admin.getByRole("listitem").filter({ hasText: "How many partner farms" });
+  await expect(pending).toContainText("[removed]");
+  await pending.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(pending).toHaveCount(0);
+  await page.goto(dealRoom);
+  await page.getByLabel("Your answer").fill("Six farms today, with two more signed for next quarter.");
+  await page.getByLabel(/Show this answer to every investor/).check();
+  await page.getByRole("button", { name: "Send answer" }).click();
+  await expect(page.getByText("You: Six farms today")).toBeVisible();
+  await inv2.goto(opportunityUrl);
+  await expect(inv2.getByText("Founder: Six farms today")).toBeVisible();
+
+  // Offer → counter-offer → acceptance.
+  await inv2.getByLabel("Amount (PKR)").fill("1000000");
+  await inv2.getByLabel("Investor's share of profit (%)").fill("45");
+  await inv2.getByLabel("Conditions (optional)").fill("Monthly management accounts");
+  await shot(inv2, "26-investor-make-offer");
+  await inv2.getByRole("button", { name: "Send offer" }).click();
+  await expect(inv2).toHaveURL(/\/investments\/\w+/);
+  await expect(inv2.getByText("Waiting for the founder")).toBeVisible();
+  const offerUrl = inv2.url();
+
+  await page.goto(dealRoom);
+  await expect(page.getByText("Investor 1: PKR 1,000,000")).toBeVisible();
+  await expect(page.getByText("Sara Qureshi")).toHaveCount(0);
+  await page.getByRole("button", { name: "Counter", exact: true }).click();
+  await page.getByLabel("Investor's share of profit (%)").fill("40");
+  await page.getByLabel("Message", { exact: true }).fill("40% keeps enough profit in the business to grow.");
+  await page.getByRole("button", { name: "Send counter-offer" }).click();
+  await expect(page.getByText("Waiting for investor").first()).toBeVisible();
+  await shot(page, "27-founder-deal-room-counter");
+
+  await inv2.goto(offerUrl);
+  await expect(inv2.getByText(/Founder countered with PKR 1,000,000: Musharakah: 40% of profit/)).toBeVisible();
+  await inv2.getByRole("button", { name: "Accept", exact: true }).click();
+  await expect(inv2.getByText(/Term sheet: RZ-/).first()).toBeVisible();
+
+  // The term sheet is signed by all three parties; legal then issues the agreement, signed the same way.
+  await sign(inv2, seeded.name);
+  await page.goto(dealRoom);
+  await sign(page, founderName);
+  const adminDeal = `/admin/deals/${pitchId}`;
+  await admin.goto(adminDeal);
+  await sign(admin, adminName, "Sign for RamiZeeZ");
+  await expect(admin.getByText("Signed by all", { exact: true })).toBeVisible();
+  await expect(admin.getByLabel("Agreement text")).toHaveValue(/Musharakah partnership/);
+  await admin.getByRole("button", { name: "Issue agreement for signature" }).click();
+  await expect(admin.getByText(/Investment agreement: RZ-/).first()).toBeVisible();
+  await sign(admin, adminName, "Sign for RamiZeeZ");
+  await inv2.goto(offerUrl);
+  await sign(inv2, seeded.name);
+  await page.goto(dealRoom);
+  await sign(page, founderName);
+  await expect(page.getByText("Committed: agreements & deposits")).toBeVisible();
+
+  // The signed agreement downloads as a PDF for its parties only.
+  await inv2.goto(offerUrl);
+  const docLinks = inv2.getByRole("link", { name: "Download PDF" });
+  await expect(docLinks).toHaveCount(2);
+  const agreementPdf = await inv2.request.get((await docLinks.last().getAttribute("href"))!);
+  expect(agreementPdf.headers()["content-type"]).toBe("application/pdf");
+  expect((await agreementPdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  const stranger = await browser.newContext();
+  expect((await stranger.request.get((await docLinks.last().getAttribute("href"))!, { maxRedirects: 0 })).status()).not.toBe(200);
+  await stranger.close();
+  await expect(inv2.getByText(/Use the payment reference/)).toBeVisible();
+  await shot(inv2, "28-investor-deposit-instructions");
+
+  // Escrow is maker-checker: the admin records the deposit, finance approves it.
+  const recordEntry = async (p: Page, type: string, amount: string, pick: { label: string; option: string }, reference: string) => {
+    await p.getByLabel(exactLabel("Entry")).selectOption(type);
+    await p.getByLabel(exactLabel("Amount")).fill(amount);
+    await p.getByLabel(pick.label).selectOption({ label: pick.option });
+    await p.getByLabel("Bank reference").fill(reference);
+    await p.getByRole("button", { name: "Record entry" }).click();
+    await expect(p.getByText(`Ref ${reference}`)).toBeVisible();
+  };
+  await admin.goto(adminDeal);
+  await recordEntry(admin, "DEPOSIT", "1000000", { label: "Investor commitment", option: "Sara Qureshi: PKR 1,000,000" }, "HBL-TT-0001");
+  await expect(admin.getByText("Needs another approver")).toBeVisible();
+
+  await login(fin, finance.email, finance.password, finance.secret, new Set());
+  await expect(fin).toHaveURL(/\/admin/);
+  await fin.goto(adminDeal);
+  const ledgerRow = (p: Page, text: string) => p.getByRole("row").filter({ hasText: text });
+  await ledgerRow(fin, "HBL-TT-0001").getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(ledgerRow(fin, "HBL-TT-0001")).toContainText("posted");
+  // The round is funded: the 10% success fee is queued automatically and approved by finance.
+  await expect(fin.getByText("Funded: in execution")).toBeVisible();
+  await expect(ledgerRow(fin, "RamiZeeZ fee")).toContainText("100,000");
+  await ledgerRow(fin, "RamiZeeZ fee").getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(ledgerRow(fin, "RamiZeeZ fee")).toContainText("posted");
+  await expect(fin.getByText("PKR 900,000", { exact: true })).toBeVisible();
+
+  // Milestone 1: the founder submits evidence, execution approves, finance records the release, the admin approves it.
+  await page.goto(dealRoom);
+  const m1 = page.getByRole("listitem").filter({ hasText: "Van on the road" });
+  await m1.getByLabel("What was achieved?").fill("The van is registered and on the road, with 112 paying subscribers.");
+  await m1.locator("input[type=file]").setInputFiles({ name: "van-registration.pdf", mimeType: "application/pdf", buffer: PDF });
+  await m1.getByRole("button", { name: "Submit evidence" }).click();
+  await expect(m1.getByText("Evidence under review")).toBeVisible();
+  await shot(page, "29-founder-milestone-evidence");
+
+  await admin.goto(adminDeal);
+  const adminM1 = admin.getByRole("listitem").filter({ hasText: "Van on the road" });
+  await expect(adminM1.getByRole("link", { name: /van-registration\.pdf/ })).toBeVisible();
+  await adminM1.getByRole("button", { name: "Approve milestone" }).click();
+  await expect(adminM1.getByText("Approved: release pending")).toBeVisible();
+
+  await fin.goto(adminDeal);
+  await recordEntry(fin, "RELEASE", "500000", { label: "Milestone", option: "Month 1: Van on the road" }, "HBL-TT-0002");
+  await admin.goto(adminDeal);
+  await ledgerRow(admin, "HBL-TT-0002").getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(ledgerRow(admin, "HBL-TT-0002")).toContainText("posted");
+  await expect(admin.getByText("PKR 400,000", { exact: true })).toBeVisible();
+  await shot(admin, "30-admin-deal-escrow");
+
+  await inv2.goto(offerUrl);
+  await expect(inv2.getByText("is held in escrow")).toBeVisible();
+  await expect(inv2.getByRole("listitem").filter({ hasText: "Van on the road" }).getByText("Released")).toBeVisible();
+  await shot(inv2, "31-investor-milestones");
+  await page.goto(dealRoom);
+  await expect(page.getByText("Funded: in execution")).toBeVisible();
 
   // ── Returning sign-in requires the authenticator code ──
   await page.getByRole("button", { name: "Sign out" }).click();

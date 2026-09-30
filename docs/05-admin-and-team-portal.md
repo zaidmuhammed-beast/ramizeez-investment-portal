@@ -29,3 +29,18 @@ Every sensitive action requires 2FA. High-risk actions (releasing funds, approvi
 9. **Execution & marketing**: an assigned manager per funded company, task tracking, monthly investor reports.
 10. **Compliance**: AML screening results, suspicious activity reports, re-KYC schedule, audit log search.
 11. **Settings**: fees, tier rules, unlock quotas, document requirements, email/SMS templates, team and roles.
+
+## 5.3 Deals desk (built)
+
+`/admin/deals` gathers everything waiting on the team: questions to moderate, milestone evidence to review, escrow entries awaiting approval, and offers still in negotiation. Each round has its own page with the offers (investor names visible to the team), documents, milestones and escrow ledger.
+
+| Step | Who (permission) | Rule |
+|------|------------------|------|
+| Pass an investor's question to the founder | Deal Analyst (`deals.moderate`) | Contact details are already stripped |
+| Sign term sheets and agreements for RamiZeeZ, issue the agreement | Legal (`deals.legal`) | Only after the term sheet is signed by everyone |
+| Close a round early at the committed amount | Investment Committee (`pitches.approve`) | Milestone releases are scaled down to match |
+| Record a deposit, release or refund | Finance (`escrow.record`) | A release needs an approved milestone and can't exceed its budget |
+| Approve an escrow entry | Finance (`escrow.approve`) | **Never the person who recorded it** |
+| Approve milestone evidence | Execution Manager (`deals.execution`) | A note is required to send it back |
+
+Every step is audit-logged, and the parties are emailed at each stage.

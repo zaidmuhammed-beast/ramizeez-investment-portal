@@ -16,6 +16,8 @@ import { SecureView } from "@/components/investor/secure-view";
 import { SummaryView } from "@/components/investor/summary-view";
 import { teaserFacts } from "@/components/investor/teaser";
 import { AccessRequestForm, NdaForm, WatchButton, WithdrawRequestButton } from "../forms";
+import { AskQuestionForm, MakeOfferForm } from "@/components/deals/forms";
+import type { DealType } from "@/lib/deals/offers";
 
 export const metadata: Metadata = { title: "Opportunity" };
 
@@ -54,6 +56,16 @@ export default async function OpportunityPage({ params }: PageProps<"/opportunit
   const maxIntent = Math.min(Number(pitch.amount ?? 0), budgetInPitchCcy);
 
   let files: Record<string, { id: string; originalName: string | null; mimeType: string }> = {};
+  const [questions, myOffer] =
+    level === "FULL"
+      ? await Promise.all([
+          db.pitchQuestion.findMany({
+            where: { pitchId: pitch.id, OR: [{ investorId: user.id }, { shared: true, status: "ANSWERED" }] },
+            orderBy: { createdAt: "desc" },
+          }),
+          db.offer.findFirst({ where: { pitchId: pitch.id, investorId: user.id, status: { in: ["AWAITING_FOUNDER", "AWAITING_INVESTOR", "ACCEPTED"] } } }),
+        ])
+      : [[], null];
   if (level === "FULL") {
     const ids = [pitch.deckFileId, ...pitch.imageFileIds, ...pitch.documentFileIds].filter((x): x is string => !!x);
     files = Object.fromEntries((await db.storedFile.findMany({ where: { id: { in: ids } }, select: { id: true, originalName: true, mimeType: true } })).map((f) => [f.id, f]));
@@ -151,6 +163,56 @@ export default async function OpportunityPage({ params }: PageProps<"/opportunit
               ) : (
                 <AccessRequestForm pitchId={pitch.id} currency={pitch.currency} min={Number(pitch.minTicket)} max={maxIntent} />
               )}
+            </Card>
+          )}
+
+          {level === "FULL" && (
+            <Card title="Make an offer" strong>
+              {myOffer ? (
+                <div className="space-y-2 text-sm text-slate-300">
+                  <p>
+                    Your offer: {formatMoney(Number(myOffer.amount), myOffer.currency)}, <span className="text-white">{myOffer.status.replaceAll("_", " ").toLowerCase()}</span>.
+                  </p>
+                  <Link href={`/investments/${myOffer.id}`} className="font-medium text-brand-300 hover:underline">
+                    Open the negotiation →
+                  </Link>
+                </div>
+              ) : pitch.dealType ? (
+                <MakeOfferForm
+                  pitchId={pitch.id}
+                  dealType={pitch.dealType as DealType}
+                  currency={pitch.currency}
+                  min={Number(pitch.minTicket)}
+                  max={maxIntent}
+                  suggested={{
+                    equityPercent: data.equityPercent ?? undefined,
+                    valuation: data.valuation ?? undefined,
+                    profitSharePercent: data.profitSharePercent ?? undefined,
+                    revenueSharePercent: data.revenueSharePercent ?? undefined,
+                    returnCapMultiple: data.returnCapMultiple ?? undefined,
+                    termMonths: data.termMonths ?? undefined,
+                  }}
+                />
+              ) : null}
+            </Card>
+          )}
+
+          {level === "FULL" && (
+            <Card title="Questions to the founder">
+              <AskQuestionForm pitchId={pitch.id} />
+              <ul className="mt-5 space-y-3">
+                {questions.map((q) => (
+                  <li key={q.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm">
+                    <p className="text-white">{q.body}</p>
+                    {q.status === "ANSWERED" ? (
+                      <p className="mt-2 whitespace-pre-line text-brand-100">Founder: {q.answer}</p>
+                    ) : (
+                      <p className="mt-1 text-xs text-slate-500">{q.status === "PENDING" ? "With RamiZeeZ for review" : q.status === "OPEN" ? "Waiting for the founder" : `Not passed on${q.moderationNote ? `: ${q.moderationNote}` : ""}`}</p>
+                    )}
+                    {q.investorId !== user.id && <p className="mt-1 text-[11px] text-slate-500">Shared by the founder with all data-room investors</p>}
+                  </li>
+                ))}
+              </ul>
             </Card>
           )}
 

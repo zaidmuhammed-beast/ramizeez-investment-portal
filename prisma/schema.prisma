@@ -66,36 +66,45 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  sessions          Session[]
-  otpCodes          OtpCode[]
-  files             StoredFile[]
-  identityDocuments IdentityDocument[]
-  livenessChecks    LivenessCheck[]
-  addresses         Address[]
-  personalProfile   PersonalProfile?
-  education         Education[]
-  experience        Experience[]
-  pastVentures      PastVenture[]
-  references        Reference[]
-  goals             GoalsProfile?
-  declaration       IntegrityDeclaration?
-  investorProfile   InvestorProfile?
-  founderProfile    FounderProfile?
-  amlScreenings     AmlScreening[]
-  cases             VerificationCase[]    @relation("CaseSubject")
-  assignedCases     VerificationCase[]    @relation("CaseAssignee")
-  decidedCases      VerificationCase[]    @relation("CaseDecider")
-  caseNotes         CaseNote[]
-  auditLogs         AuditLog[]
-  pitches           Pitch[]               @relation("PitchFounder")
-  assignedPitches   Pitch[]               @relation("PitchAssignee")
-  pitchReviews      PitchReview[]
-  pitchEvents       PitchEvent[]
-  ndaSignatures     NdaSignature[]
-  accessRequests    AccessRequest[]       @relation("AccessRequester")
-  accessDecisions   AccessRequest[]       @relation("AccessDecider")
-  pitchViews        PitchViewLog[]
-  watchlist         WatchlistItem[]
+  sessions           Session[]
+  otpCodes           OtpCode[]
+  files              StoredFile[]
+  identityDocuments  IdentityDocument[]
+  livenessChecks     LivenessCheck[]
+  addresses          Address[]
+  personalProfile    PersonalProfile?
+  education          Education[]
+  experience         Experience[]
+  pastVentures       PastVenture[]
+  references         Reference[]
+  goals              GoalsProfile?
+  declaration        IntegrityDeclaration?
+  investorProfile    InvestorProfile?
+  founderProfile     FounderProfile?
+  amlScreenings      AmlScreening[]
+  cases              VerificationCase[]    @relation("CaseSubject")
+  assignedCases      VerificationCase[]    @relation("CaseAssignee")
+  decidedCases       VerificationCase[]    @relation("CaseDecider")
+  caseNotes          CaseNote[]
+  auditLogs          AuditLog[]
+  pitches            Pitch[]               @relation("PitchFounder")
+  assignedPitches    Pitch[]               @relation("PitchAssignee")
+  pitchReviews       PitchReview[]
+  pitchEvents        PitchEvent[]
+  ndaSignatures      NdaSignature[]
+  accessRequests     AccessRequest[]       @relation("AccessRequester")
+  accessDecisions    AccessRequest[]       @relation("AccessDecider")
+  pitchViews         PitchViewLog[]
+  watchlist          WatchlistItem[]
+  questionsAsked     PitchQuestion[]       @relation("QuestionAsker")
+  questionsModerated PitchQuestion[]       @relation("QuestionModerator")
+  offers             Offer[]
+  offerRevisions     OfferRevision[]
+  documentsIssued    DealDocument[]
+  signatures         DocumentSignature[]
+  escrowRecorded     EscrowEntry[]         @relation("EscrowRecorder")
+  escrowApproved     EscrowEntry[]         @relation("EscrowApprover")
+  claimsReviewed     MilestoneClaim[]
 }
 
 enum SessionStage {
@@ -175,6 +184,7 @@ enum FileKind {
   PITCH_DECK
   PITCH_IMAGE
   PITCH_DOCUMENT
+  MILESTONE_EVIDENCE
   OTHER
 }
 
@@ -655,6 +665,9 @@ model Pitch {
   accessRequests AccessRequest[]
   views          PitchViewLog[]
   watchers       WatchlistItem[]
+  questions      PitchQuestion[]
+  offers         Offer[]
+  deal           Deal?
 
   @@index([founderId])
   @@index([status])
@@ -685,6 +698,9 @@ model PitchMilestone {
   budget        Decimal @db.Decimal(18, 2)
   owner         String?
   position      Int     @default(0)
+
+  claims  MilestoneClaim[]
+  entries EscrowEntry[]
 
   @@index([pitchId])
 }
@@ -820,6 +836,235 @@ model WatchlistItem {
   createdAt  DateTime @default(now())
 
   @@id([investorId, pitchId])
+}
+
+// ─── Deals (Phase 5) ──────────────────────────────────────────────────────────
+
+enum QuestionStatus {
+  PENDING // awaiting RamiZeeZ moderation
+  OPEN // approved, waiting for the founder
+  ANSWERED
+  REJECTED
+}
+
+/// Investor questions to a founder, moderated by RamiZeeZ.
+model PitchQuestion {
+  id             String         @id @default(cuid())
+  pitchId        String
+  pitch          Pitch          @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId     String
+  investor       User           @relation("QuestionAsker", fields: [investorId], references: [id], onDelete: Cascade)
+  body           String
+  status         QuestionStatus @default(PENDING)
+  answer         String?
+  answeredAt     DateTime?
+  shared         Boolean        @default(false) // founder chose to show the answer to every data-room investor
+  moderatedById  String?
+  moderatedBy    User?          @relation("QuestionModerator", fields: [moderatedById], references: [id])
+  moderatedAt    DateTime?
+  moderationNote String?
+  createdAt      DateTime       @default(now())
+
+  @@index([pitchId, status])
+}
+
+enum OfferStatus {
+  AWAITING_FOUNDER
+  AWAITING_INVESTOR
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+enum OfferParty {
+  INVESTOR
+  FOUNDER
+}
+
+/// An investor's offer and its negotiation. The current terms are the latest revision.
+model Offer {
+  id         String      @id @default(cuid())
+  pitchId    String
+  pitch      Pitch       @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId String
+  investor   User        @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  status     OfferStatus
+  amount     Decimal     @db.Decimal(18, 2)
+  currency   String
+  terms      Json // deal-type terms: equityPercent, valuation, profitSharePercent, revenueSharePercent, returnCapMultiple, termMonths
+  conditions String?
+  lastBy     OfferParty
+  acceptedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  revisions OfferRevision[]
+  documents DealDocument[]
+  entries   EscrowEntry[]
+
+  @@index([pitchId, status])
+  @@index([investorId])
+}
+
+model OfferRevision {
+  id         String     @id @default(cuid())
+  offerId    String
+  offer      Offer      @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  by         OfferParty
+  actorId    String
+  actor      User       @relation(fields: [actorId], references: [id])
+  action     String // OFFER | COUNTER | ACCEPT | DECLINE | WITHDRAW
+  amount     Decimal    @db.Decimal(18, 2)
+  terms      Json
+  conditions String?
+  note       String?
+  createdAt  DateTime   @default(now())
+
+  @@index([offerId])
+}
+
+enum DealStatus {
+  OPEN // collecting commitments
+  COMMITTED // fully committed (or closed early), awaiting agreements and deposits
+  FUNDED // agreements signed and deposits in escrow; execution under way
+  COMPLETED // every milestone released
+  CANCELLED
+}
+
+/// The funding round of a listed pitch, created when the first offer is accepted.
+model Deal {
+  id          String     @id @default(cuid())
+  pitchId     String     @unique
+  pitch       Pitch      @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  status      DealStatus @default(OPEN)
+  target      Decimal    @db.Decimal(18, 2)
+  currency    String
+  closedEarly Boolean    @default(false)
+  fundedTotal Decimal?   @db.Decimal(18, 2)
+  fundedAt    DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  entries EscrowEntry[]
+  claims  MilestoneClaim[]
+}
+
+enum DocumentKind {
+  TERM_SHEET
+  AGREEMENT
+}
+
+enum DocumentStatus {
+  SIGNING
+  SIGNED
+  VOID
+}
+
+enum SignatoryParty {
+  INVESTOR
+  FOUNDER
+  RAMIZEEZ
+}
+
+/// A term sheet or agreement for one accepted offer, e-signed by investor, founder and RamiZeeZ.
+model DealDocument {
+  id              String         @id @default(cuid())
+  offerId         String
+  offer           Offer          @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  kind            DocumentKind
+  title           String
+  body            String
+  bodyHash        String
+  templateVersion String
+  status          DocumentStatus @default(SIGNING)
+  issuedById      String?
+  issuedBy        User?          @relation(fields: [issuedById], references: [id])
+  signedAt        DateTime?
+  createdAt       DateTime       @default(now())
+
+  signatures DocumentSignature[]
+
+  @@index([offerId, kind])
+}
+
+model DocumentSignature {
+  id         String         @id @default(cuid())
+  documentId String
+  document   DealDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  party      SignatoryParty
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  typedName  String
+  bodyHash   String
+  signedAt   DateTime       @default(now())
+  ip         String?
+
+  @@unique([documentId, party])
+}
+
+enum EscrowEntryType {
+  DEPOSIT
+  FEE
+  RELEASE
+  REFUND
+}
+
+enum EscrowEntryStatus {
+  PENDING // recorded, awaiting a second person's approval
+  POSTED
+  REJECTED
+}
+
+/// Escrow ledger kept by RamiZeeZ finance until a bank/trustee integration exists.
+/// Every entry needs a second, different person to approve it (maker-checker).
+model EscrowEntry {
+  id           String            @id @default(cuid())
+  dealId       String
+  deal         Deal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  offerId      String?
+  offer        Offer?            @relation(fields: [offerId], references: [id])
+  milestoneId  String?
+  milestone    PitchMilestone?   @relation(fields: [milestoneId], references: [id])
+  type         EscrowEntryType
+  amount       Decimal           @db.Decimal(18, 2)
+  currency     String
+  reference    String? // bank transfer reference
+  note         String?
+  status       EscrowEntryStatus @default(PENDING)
+  recordedById String? // null = created by the system (the success fee)
+  recordedBy   User?             @relation("EscrowRecorder", fields: [recordedById], references: [id])
+  approvedById String?
+  approvedBy   User?             @relation("EscrowApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([dealId, status])
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+/// A founder's evidence that a milestone is done, reviewed before its budget is released.
+model MilestoneClaim {
+  id           String         @id @default(cuid())
+  dealId       String
+  deal         Deal           @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  milestoneId  String
+  milestone    PitchMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  evidence     String
+  fileIds      String[]
+  status       ClaimStatus    @default(SUBMITTED)
+  reviewedById String?
+  reviewedBy   User?          @relation(fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime       @default(now())
+
+  @@index([dealId, milestoneId])
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────

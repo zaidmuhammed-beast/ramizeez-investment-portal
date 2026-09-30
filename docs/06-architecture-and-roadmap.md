@@ -42,7 +42,7 @@
 | **2: Verification** ✅ | Tiers 0–4, KYC provider integration, deep profile forms, verification queue, AML screening | Only verified users on the platform |
 | **3: Pitching** ✅ | Pitch builder (all sections, costing table, roadmap), drafts, submission, screening pipeline | Founders can submit, the team can screen |
 | **4: Investor portal** ✅ | Investor profile & verified budget, matching, blind teasers, NDA e-sign, secure viewer & watermarking, unlock quotas | Investors browse safely |
-| **5: Deals** | Q&A, offers, term sheets, agreements, e-signature, escrow & milestone tracking | Deals close on the platform |
+| **5: Deals** ✅ | Q&A, offers, term sheets, agreements, e-signature, escrow & milestone tracking | Deals close on the platform |
 | **6: Tank & growth** | Live pitch sessions, execution and marketing module, investor reports, mobile app, Urdu language | The full Shark Tank experience |
 
 ## 6.5 Decisions
@@ -58,10 +58,13 @@
 | 7 | Minimum amount | **PKR 100,000** for each pitch's raise and each investment. Foreign-currency amounts are checked with indicative exchange rates in `src/config/platform.ts`; review them monthly or connect a live feed. |
 | 8 | Branding | **To be decided.** "RamiZeeZ Ventures" is a placeholder set in one place (`src/config/brand.ts`, plus the logo mark). |
 | 9 | Email & SMS providers | **To be chosen later.** Three options for each are built in, selected with environment variables: email via **Resend, SendGrid or any SMTP server**; SMS via **Twilio, Vonage, or a generic HTTP gateway** for Pakistani aggregators. Admin → Settings shows the active providers and sends test messages. |
+| 10 | Escrow | Until a licensed bank or trustee is appointed, escrow is a **manual ledger** kept by finance: every deposit, release and refund is recorded against a bank reference and posts only after a second team member approves it. The bank integration will replace the manual recording step, not the rules. |
 
 ## 6.6 Remaining open questions
 
 1. How the 25% business share applies to non-equity deals (Musharakah, Mudarabah, revenue share), for example as a 25% share of the profit or revenue. Confirm with legal and the Shariah advisor.
 2. Whether the success fee and business share will ever vary by deal size. They are fixed for now.
 3. The final name and branding.
-4. Which email and SMS providers to use.
+4. The final wording of the term sheet and agreement templates (`src/config/agreements.ts`), including Shariah board sign-off for Musharakah and Mudarabah.
+5. Which bank or trustee will hold escrow.
+6. Which email and SMS providers to use.
