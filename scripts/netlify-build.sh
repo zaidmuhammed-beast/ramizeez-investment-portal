@@ -22,7 +22,15 @@ const e = process.env;
 if (!e.DATABASE_URL) problems.push("No database: enable Netlify DB (Data & storage), or set DATABASE_URL to a PostgreSQL connection string.");
 for (const k of ["DATA_ENCRYPTION_KEY", "BLIND_INDEX_KEY"]) {
   if (!e[k]) problems.push(`${k} is missing: set it to a random 32-byte base64 key (npm run gen:keys).`);
-  else if (Buffer.from(e[k], "base64").length !== 32) problems.push(`${k} isn't a 32-byte base64 key: generate a fresh one (npm run gen:keys) and paste it without quotes or spaces.`);
+  else if (Buffer.from(e[k], "base64").length !== 32) {
+    // Describe the value without revealing it.
+    const v = e[k];
+    const hints = [`it is ${v.length} characters (a key is 44, ending in "=")`];
+    if (/["']/.test(v)) hints.push("it contains quote marks");
+    if (/\s/.test(v)) hints.push("it contains spaces or line breaks");
+    if (/[^A-Za-z0-9+/=\s"']/.test(v)) hints.push("it contains characters that aren't base64");
+    problems.push(`${k} isn't a 32-byte base64 key: ${hints.join(", ")}. Generate a fresh one and paste only the key.`);
+  }
 }
 if (e.DATA_ENCRYPTION_KEY && e.DATA_ENCRYPTION_KEY === e.BLIND_INDEX_KEY) problems.push("DATA_ENCRYPTION_KEY and BLIND_INDEX_KEY must be different keys.");
 if (e.APP_ENV === "production" && (!e.EMAIL_PROVIDER || e.EMAIL_PROVIDER === "outbox" || !e.SMS_PROVIDER || e.SMS_PROVIDER === "outbox"))
