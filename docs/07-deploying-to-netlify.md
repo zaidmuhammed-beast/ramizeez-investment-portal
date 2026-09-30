@@ -30,7 +30,7 @@ Migrations run automatically on every deploy (`prisma migrate deploy`).
 
 ## 3. Set environment variables
 
-Set these under **Site configuration → Environment variables**. Mark the keys and passwords
+Set these under **Project configuration → Environment variables**. Mark the keys and passwords
 as secret.
 
 | Variable | Value |
@@ -48,7 +48,7 @@ as secret.
 
 ## 4. Deploy and sign in
 
-1. Trigger a deploy. The build log shows the migrations, then "Seeding the super admin".
+1. Trigger a deploy. The build log shows "Settings check passed", the migrations, then "Seeding the super admin". If a setting is missing, the log lists exactly which ones.
 2. Open the site, sign in at `/login` with the seed admin, and set up 2FA.
 3. Delete `SEED_ADMIN_PASSWORD` from the environment variables.
 4. Add more team members from **Admin → Team**.
