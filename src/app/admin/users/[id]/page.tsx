@@ -58,7 +58,7 @@ export default async function UserPage({ params }: PageProps<"/admin/users/[id]"
           </div>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           <RoleEvidence user={u} files={files} canViewFiles={canViewFiles} />
           <ProfileSummary user={u} />

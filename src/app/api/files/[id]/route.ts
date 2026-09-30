@@ -18,7 +18,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/files/[id]">) {
   // KYC officers see KYC documents; pitch reviewers see only pitch material.
   const isReviewer = isPitchFile
     ? can(session.user, "pitches.view")
-    : file.kind === "MILESTONE_EVIDENCE"
+    : file.kind === "MILESTONE_EVIDENCE" || file.kind === "INVESTOR_REPORT"
       ? can(session.user, "deals.view")
       : can(session.user, "kyc.files.view");
   if (!isOwner && !isReviewer) return notFound();

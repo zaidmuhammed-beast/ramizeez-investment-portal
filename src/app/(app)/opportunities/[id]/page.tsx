@@ -87,7 +87,7 @@ export default async function OpportunityPage({ params }: PageProps<"/opportunit
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <Card title="Teaser" strong>
             <p className="text-slate-200">{pitch.teaser}</p>

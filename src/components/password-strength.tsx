@@ -9,7 +9,7 @@ const rules: [string, (p: string) => boolean][] = [
   ["A symbol", (p) => /[^A-Za-z0-9]/.test(p)],
 ];
 
-export function PasswordStrength({ password }: { password: string }) {
+export function PasswordStrength({ password, labels }: { password: string; labels?: string[] }) {
   const met = rules.filter(([, test]) => test(password)).length;
   return (
     <div className="mt-2 space-y-2" aria-live="polite">
@@ -25,9 +25,9 @@ export function PasswordStrength({ password }: { password: string }) {
         ))}
       </div>
       <ul className="grid grid-cols-2 gap-x-2 text-[11px] text-slate-400">
-        {rules.map(([label, test]) => (
+        {rules.map(([label, test], i) => (
           <li key={label} className={cn(test(password) && "text-brand-300")}>
-            {test(password) ? "✓" : "○"} {label}
+            {test(password) ? "✓" : "○"} {labels?.[i] ?? label}
           </li>
         ))}
       </ul>

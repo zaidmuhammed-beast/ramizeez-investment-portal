@@ -2,7 +2,7 @@
 
 A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (people with a startup idea or an existing business that needs capital) with **verified investors** in Pakistan, overseas Pakistanis and foreign investors. RamiZeeZ sits in the middle as the trusted intermediary. It verifies everyone, screens every pitch, protects founders' ideas, and manages agreements, execution and marketing once a deal closes.
 
-> **Status:** Phases 1–5 are built: secure accounts, the team portal, the full tiered verification (KYC) system, the pitch builder with its screening pipeline, the investor portal with idea protection, and deals (moderated Q&A, offers and counter-offers, e-signed term sheets and agreements, a maker-checker escrow ledger and milestone releases). Phase 6 (live Tank sessions, execution and marketing, investor reports) is next.
+> **Status:** All six planned phases are built: secure accounts, the team portal, tiered verification (KYC), the pitch builder and screening pipeline, the investor portal with idea protection, deals (Q&A, offers, e-signed agreements, maker-checker escrow, milestone releases), and growth (live Tank sessions, execution and marketing, monthly investor reports, Urdu, and an installable mobile web app). What remains before launch is listed under [Before production](#before-production).
 
 ## Design documents
 
@@ -73,6 +73,42 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
   - An early close scales milestone releases to the amount raised.
 - **Milestone releases.** Founders submit evidence (text and files). The execution team approves it. Only then can finance release that milestone's budget, and never more than it.
 - Once a round stops taking commitments, it disappears from new investors' feeds.
+
+**Live Tank sessions (`/tank`, `/sessions`, `/admin/tank`)**
+- The team (Deal Analyst, Marketing or Super Admin) schedules a session with up to 6 listed pitches whose rounds are open. Founders confirm, and choose whether attendees get their full data room afterwards.
+- A public events page shows upcoming sessions with the businesses anonymised: sector, stage, raise and structure only.
+- Matching Tier 4 investors are emailed. They sign one session NDA covering every pitch, and request a seat. The team approves seats up to the session's capacity.
+- **Joining:**
+  - Everyone joins through a personal, audited link that works from 15 minutes before the start to 15 minutes after the end.
+  - The room address never appears in the page, and the redirect sends no referrer.
+  - Team members join as moderators.
+- **During the session**, attending investors can say “I'm in” with an amount. It isn't binding. The founder sees the interest anonymously; the team sees names.
+- **Completing the session** opens the data room of each pitch whose founder allowed it to every investor who joined. This doesn't use their monthly quotas, so they can go straight to an offer. A recording link can be added for attendees, and every view of it is logged.
+- **Video providers** (choose with `VIDEO_PROVIDER`, like email and SMS):
+  - `link`: paste any Zoom, Google Meet or Teams link for each session.
+  - `jitsi`: rooms are created automatically; with a self-hosted Jitsi, each attendee also gets a signed, expiring token.
+  - `daily`: private Daily.co rooms with a personal meeting token per attendee, and optional cloud recording.
+
+**Execution, marketing & monthly reports (`/admin/execution`, `/admin/marketing`)**
+- Each funded company gets an **execution manager**, a **status** (on track / needs attention / at risk, with a note investors see; investors are emailed when a company moves to or from "at risk") and **tasks**. Founders see the tasks meant for them and update them; a blocked task alerts the manager.
+- **Monthly investor reports.**
+  - Each month's report is due by the 10th of the following month. It covers revenue, costs, cash in bank, customers, a key metric, highlights, challenges, asks and attachments.
+  - The execution team publishes it, with optional commentary, or returns it with what to fix.
+  - Investors see published reports with their **indicative return** for their structure:
+    - Musharakah and Mudarabah profit or loss share
+    - revenue share, capped at the agreed multiple
+    - equity: profit attributable to their stake
+  - Report attachments open for investors as watermarked PDFs.
+  - Overdue reports trigger reminders, at most once a week per company. Send them from the team portal, or have a cron service call `POST /api/jobs/report-reminders` with `JOBS_SECRET`.
+- **Marketing** runs campaigns per funded business (channel, objective, budget, dates) and records results. Reach, leads and customers give conversion rates and cost per customer. Founders and investors see campaigns; investors don't see budgets. The Marketing role never sees KYC documents or deal financials.
+
+**Urdu & mobile**
+- **English / اردو switch** on every public and applicant page. Urdu is shown right-to-left in Noto Nastaliq Urdu; numbers, codes and emails stay left-to-right.
+- **Translated so far:** the landing page, the Tank events page, sign-up, sign-in, 2FA, contact verification, password change, the app navigation and the dashboard, including the messages those forms return.
+- **Still in English:** the KYC forms, the pitch builder, the investor portal, deals and the team portal.
+- The choice is remembered on the device and on the account.
+- **Installable app (PWA):** add it to the home screen on Android and iPhone, or install it on desktop, with app icons and shortcuts. The service worker only provides an offline page. It never stores pages or files with personal or deal data.
+- Checked at phone width (390 px) with no sideways scrolling on the key pages.
 
 **Team portal (`/admin`)**
 - A verification queue (oldest first) with each automated check's result, the ID images, the liveness frames next to their prompts, address proof, AML hits, internal notes, assignment and case history.
@@ -147,15 +183,23 @@ Pick one of each in `.env`; every option is documented in `.env.example`. **Admi
 | SMS | `vonage` | `VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_FROM` |
 | SMS | `http` (any local Pakistani gateway with an HTTP API) | `SMS_HTTP_URL` with `{to}` / `{to_digits}` / `{to_local}` / `{message}` placeholders, plus optional method, body, headers and success text |
 
+Live Tank sessions use `VIDEO_PROVIDER` the same way:
+
+| `VIDEO_PROVIDER` | How it works | Settings needed |
+|------------------|--------------|-----------------|
+| `link` (default) | The team pastes a Zoom / Google Meet / Teams link per session | none |
+| `jitsi` | Rooms created automatically on meet.jit.si or your own Jitsi server | `JITSI_BASE_URL`; for signed per-attendee tokens, `JITSI_APP_ID` + `JITSI_APP_SECRET` |
+| `daily` | Private Daily.co rooms, personal meeting tokens, optional cloud recording | `DAILY_API_KEY`, optional `DAILY_RECORDING=true` |
+
 The app checks this configuration at startup and refuses to run if a chosen provider is missing a setting. With `APP_ENV=production`, it also refuses to run on the testing outbox, with `DEV_SHOW_OTP`, or with `KYC_ALLOW_FILE_UPLOAD`. When a real provider is in use, one-time codes are masked in the message log.
 
 ## Checks & tests
 
 ```bash
 npm run typecheck && npm run lint
-npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, investor matching, disclosure & watermarking, offer terms & capacity, escrow & round status, agreements & document PDFs, encryption
+npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, investor matching, disclosure & watermarking, offer terms & capacity, escrow & round status, agreements & document PDFs, Tank timing & seats, video providers, monthly reports & indicative returns, campaigns, Urdu dictionary completeness, encryption
 npm run build && npm start  # then, in another terminal:
-npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, screened, listed → investor NDA, request, approval, watermarked data room → Q&A, offer, counter, term sheet & agreement signed by 3 parties, deposit + fee + milestone release with maker-checker
+npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, screened, listed → investor NDA, request, approval, watermarked data room → live Tank session (schedule, confirm, NDA seat, audited join, “I'm in”, recording) → Q&A, offer, counter, term sheet & agreement signed by 3 parties, deposit + fee + milestone release with maker-checker → execution manager, status, founder task, monthly report published with indicative return, campaign results → Urdu pages, PWA manifest, phone-width layout
 ```
 
 The E2E test seeds its own fresh super admin, a verified investor and a finance team member on every run. If you're using a pre-installed Chromium, set `E2E_CHROMIUM_PATH`. Set `E2E_SCREENSHOTS=<dir>` to save screenshots.
@@ -174,6 +218,10 @@ src/lib/pitch/              pitch completeness rules, deal maths, screening work
 src/lib/investor/           matching, disclosure levels, quotas & misuse flags, PDF watermarking, data-room access
 src/lib/deals/              offer terms & capacity, escrow ledger & round status, document PDFs, the deal service
 src/config/agreements.ts    term sheet & agreement templates (draft, versioned)
+src/lib/tank/               Tank session rules, video providers (link / Jitsi / Daily), the session service
+src/lib/execution/          execution, monthly-report and marketing rules and service
+src/i18n/                   English and Urdu dictionaries, locale cookie, language switch
+public/sw.js, src/app/manifest.ts   installable app (offline page only; nothing personal is cached)
 src/components/ui/          glassmorphism design system (cards, forms, badges, buttons)
 tests/unit, tests/e2e       Vitest and Playwright
 ```
@@ -185,5 +233,7 @@ tests/unit, tests/e2e       Vitest and Playwright
 - Connect Sumsub (or NADRA Verisys through a licensed provider) and load official sanctions lists.
 - Move file storage to encrypted S3, and store the encryption keys in a managed key service with a rotation plan.
 - Move the in-memory rate limiter to Redis before running more than one app server.
+- Choose the video provider for Tank sessions (`VIDEO_PROVIDER`), and set `JOBS_SECRET` plus a daily cron call for report reminders.
+- Have a native Urdu speaker review `src/i18n/dictionaries/ur.ts`, then translate the remaining applicant pages.
 - Appoint a licensed bank or trustee for escrow and connect it (the ledger is manual until then). Have legal and a Shariah advisor finalise the agreement templates, and bump `AGREEMENT_TEMPLATE_VERSION`.
 - Publish the final Terms and Privacy Policy (`/legal/*` are placeholders), and run a penetration test.

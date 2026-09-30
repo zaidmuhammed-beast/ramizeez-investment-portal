@@ -62,9 +62,20 @@ export default async function AdminDealPage({ params }: PageProps<"/admin/deals/
       <PageHeader
         title={pitch.title}
         description={`Founder ${pitch.founder.firstName} ${pitch.founder.lastName} · raising ${formatMoney(Number(pitch.amount ?? 0), pitch.currency)} · committed ${formatMoney(committed, pitch.currency)}`}
-        actions={deal ? <StatusPill map={DEAL_STATUS} status={deal.status} /> : undefined}
+        actions={
+          deal ? (
+            <div className="flex items-center gap-3">
+              {(deal.status === "FUNDED" || deal.status === "COMPLETED") && can(me, "deals.execution") && (
+                <Link href={`/admin/execution/${deal.id}`} className="text-sm text-brand-300 hover:underline">
+                  Execution & reports →
+                </Link>
+              )}
+              <StatusPill map={DEAL_STATUS} status={deal.status} />
+            </div>
+          ) : undefined
+        }
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_420px]">
         <div className="space-y-6">
           {pitch.offers.map((o) => (
             <Card key={o.id} title={`${o.investor.firstName} ${o.investor.lastName}: ${formatMoney(Number(o.amount), o.currency)}`} description={describeTerms(dealType, o.terms as OfferTerms, o.currency)} actions={<StatusPill map={OFFER_STATUS} status={o.status} />}>

@@ -19,7 +19,7 @@ export default async function WatchlistPage() {
         title="AML watchlist"
         description="Every sign-up is screened against these names, and again at final approval. Load sanctions, proscribed-person and PEP lists here until an external screening provider (e.g. Sumsub) is connected."
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_380px]">
         <Card>
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-slate-500">

@@ -65,7 +65,7 @@ export default async function PitchReviewPage({ params }: PageProps<"/admin/pitc
           </div>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           {issues.length > 0 && (
             <Alert tone="warn">This pitch no longer meets {issues.length} submission rule(s), probably because the rules changed after it was submitted. Return it to the founder to update.</Alert>

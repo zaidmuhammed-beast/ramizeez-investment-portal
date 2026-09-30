@@ -19,3 +19,19 @@ export function ndaText(opts: { pitchRef: string; investorName: string; date: st
     "8. Governing law. This agreement is governed by the laws of Pakistan, unless RamiZeeZ's platform terms state otherwise.",
   ];
 }
+
+export const TANK_NDA_VERSION = "tank-2026-10-draft";
+
+/** One NDA covering every pitch in a live Tank session, signed when requesting a seat. */
+export function tankNdaText(opts: { sessionTitle: string; pitchRefs: string[]; investorName: string; date: string }): string[] {
+  return [
+    `Tank session confidentiality agreement: "${opts.sessionTitle}"`,
+    `This agreement is made on ${opts.date} between ${opts.investorName} ("the Investor") and RamiZeeZ, on its own behalf and on behalf of the founders pitching in this session (opportunities ${opts.pitchRefs.join(", ")}), through ${BRAND.name}.`,
+    "1. Everything shown or said in the session, and everything later disclosed about these opportunities, is confidential and subject to the same terms as the platform's deal NDA: use only to evaluate an investment, no disclosure, and no copies.",
+    "2. No recording. The Investor will not record, screenshot, photograph or stream the session. RamiZeeZ may record it for the attendees and its own records.",
+    "3. The join link is personal. The Investor will not share it or let anyone else watch.",
+    `4. Non-circumvention. For 24 months, the Investor will not contact, negotiate with or invest in any of these founders or businesses except through ${BRAND.name}.`,
+    "5. The Founder of each opportunity may let attending investors into the full data room after the session. This agreement applies to everything in it.",
+    "6. Governing law. This agreement is governed by the laws of Pakistan, unless RamiZeeZ's platform terms state otherwise.",
+  ];
+}

@@ -67,6 +67,17 @@ const schema = z
         return z.NEVER;
       }),
     SMS_HTTP_SUCCESS_MATCH: opt,
+
+    // Live Tank session video: "link" (paste any meeting link), "jitsi" or "daily".
+    VIDEO_PROVIDER: z.enum(["link", "jitsi", "daily"]).default("link"),
+    JITSI_BASE_URL: z.string().url().default("https://meet.jit.si"),
+    JITSI_APP_ID: opt,
+    JITSI_APP_SECRET: opt,
+    DAILY_API_KEY: opt,
+    DAILY_RECORDING: bool,
+
+    // Bearer token for scheduled jobs (e.g. report reminders) called by a cron service.
+    JOBS_SECRET: opt,
   })
   .superRefine((v, ctx) => {
     const need = (keys: (keyof typeof v)[], why: string) => {
@@ -79,6 +90,9 @@ const schema = z
     if (v.SMS_PROVIDER === "twilio") need(["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"], "SMS_PROVIDER=twilio");
     if (v.SMS_PROVIDER === "vonage") need(["VONAGE_API_KEY", "VONAGE_API_SECRET", "VONAGE_FROM"], "SMS_PROVIDER=vonage");
     if (v.SMS_PROVIDER === "http") need(["SMS_HTTP_URL"], "SMS_PROVIDER=http");
+    if (v.VIDEO_PROVIDER === "daily") need(["DAILY_API_KEY"], "VIDEO_PROVIDER=daily");
+    if (!!v.JITSI_APP_ID !== !!v.JITSI_APP_SECRET) ctx.addIssue({ code: "custom", path: ["JITSI_APP_SECRET"], message: "set both JITSI_APP_ID and JITSI_APP_SECRET, or neither" });
+    if (v.JOBS_SECRET && v.JOBS_SECRET.length < 32) ctx.addIssue({ code: "custom", path: ["JOBS_SECRET"], message: "use at least 32 random characters" });
 
     if (v.APP_ENV === "production") {
       if (v.DEV_SHOW_OTP) ctx.addIssue({ code: "custom", path: ["DEV_SHOW_OTP"], message: "must be off when APP_ENV=production" });

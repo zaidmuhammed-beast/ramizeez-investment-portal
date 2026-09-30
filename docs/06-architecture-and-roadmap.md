@@ -43,7 +43,7 @@
 | **3: Pitching** ✅ | Pitch builder (all sections, costing table, roadmap), drafts, submission, screening pipeline | Founders can submit, the team can screen |
 | **4: Investor portal** ✅ | Investor profile & verified budget, matching, blind teasers, NDA e-sign, secure viewer & watermarking, unlock quotas | Investors browse safely |
 | **5: Deals** ✅ | Q&A, offers, term sheets, agreements, e-signature, escrow & milestone tracking | Deals close on the platform |
-| **6: Tank & growth** | Live pitch sessions, execution and marketing module, investor reports, mobile app, Urdu language | The full Shark Tank experience |
+| **6: Tank & growth** ✅ | Live pitch sessions, execution and marketing module, investor reports, mobile app, Urdu language | The full Shark Tank experience |
 
 ## 6.5 Decisions
 
@@ -59,6 +59,9 @@
 | 8 | Branding | **To be decided.** "RamiZeeZ Ventures" is a placeholder set in one place (`src/config/brand.ts`, plus the logo mark). |
 | 9 | Email & SMS providers | **To be chosen later.** Three options for each are built in, selected with environment variables: email via **Resend, SendGrid or any SMTP server**; SMS via **Twilio, Vonage, or a generic HTTP gateway** for Pakistani aggregators. Admin → Settings shows the active providers and sends test messages. |
 | 10 | Escrow | Until a licensed bank or trustee is appointed, escrow is a **manual ledger** kept by finance: every deposit, release and refund is recorded against a bank reference and posts only after a second team member approves it. The bank integration will replace the manual recording step, not the rules. |
+| 11 | Live video | **To be chosen later.** Three options are built in, selected with `VIDEO_PROVIDER`: paste any **Zoom / Meet / Teams link**, **Jitsi** (public or self-hosted with signed tokens), or **Daily.co** (private rooms, personal tokens, optional recording). |
+| 12 | Languages | English and **Urdu** (right-to-left). The language is chosen with a switch and stored in a cookie and on the account, rather than in the URL, so no page moves. |
+| 13 | Mobile | An **installable web app (PWA)** instead of a separate native app for now. It works on Android, iPhone and desktop, with the camera-based KYC on mobile web. A React Native app can follow if needed. |
 
 ## 6.6 Remaining open questions
 
@@ -68,3 +71,7 @@
 4. The final wording of the term sheet and agreement templates (`src/config/agreements.ts`), including Shariah board sign-off for Musharakah and Mudarabah.
 5. Which bank or trustee will hold escrow.
 6. Which email and SMS providers to use.
+7. Which video provider to use for Tank sessions.
+8. A native-speaker review of the Urdu text, and which remaining pages to translate first.
+9. Whether to add push notifications to the installable app (needs VAPID keys and a subscription store) or a native app.
+10. How profit distributions to Musharakah, Mudarabah and revenue-share investors are paid out. Reports show indicative amounts only.

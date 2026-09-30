@@ -21,6 +21,20 @@
   color-scheme: dark;
 }
 
+/* Urdu: Nastaliq for Arabic-script text; Latin text (names, amounts, codes) falls back to Geist. */
+html[lang="ur"] body {
+  font-family: "Noto Nastaliq Urdu", var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  line-height: 2;
+}
+html[lang="ur"] :is(h1, h2, h3) {
+  line-height: 1.9;
+  letter-spacing: 0;
+}
+/* Codes, numbers and emails stay left-to-right inside right-to-left text. */
+html[dir="rtl"] :is(input[type="email"], input[type="tel"], input[type="number"], input[inputmode="numeric"], code, .font-mono) {
+  direction: ltr;
+}
+
 body {
   background-color: var(--color-ink-950);
   background-image:

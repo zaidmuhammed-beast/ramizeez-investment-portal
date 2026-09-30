@@ -96,7 +96,7 @@ export function IdentityWizard({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+    <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[240px_1fr]">
       <ol className="glass h-fit space-y-1 rounded-2xl p-3" aria-label="Steps">
         {STEPS.map((label, i) => (
           <li key={label}>

@@ -14,7 +14,7 @@ export default async function TeamPage() {
   return (
     <>
       <PageHeader title="Team" description="RamiZeeZ staff accounts. Each role only gets the access its job needs." />
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_400px]">
         <Card>
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-slate-500">

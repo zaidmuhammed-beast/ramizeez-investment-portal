@@ -11,6 +11,8 @@ import { Card, PageHeader } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { DEAL_STATUS, DocumentCard, EscrowLedger, MilestoneProgress, OFFER_STATUS, OfferThread, StatusPill } from "@/components/deals/views";
 import { RespondOfferForm, SignForm, WithdrawOfferForm } from "@/components/deals/forms";
+import { indicativeReturn, type Health } from "@/lib/execution/rules";
+import { CampaignList, HealthPill, ReportCard } from "@/components/execution/views";
 
 export const metadata: Metadata = { title: "Investment" };
 
@@ -22,7 +24,12 @@ export default async function InvestmentPage({ params }: PageProps<"/investments
     include: {
       revisions: { orderBy: { createdAt: "asc" } },
       documents: { where: { status: { not: "VOID" } }, orderBy: { createdAt: "asc" }, include: { signatures: true } },
-      pitch: { include: { milestones: true, deal: { include: { entries: { orderBy: { createdAt: "asc" } }, claims: true } } } },
+      pitch: {
+        include: {
+          milestones: true,
+          deal: { include: { entries: { orderBy: { createdAt: "asc" } }, claims: true, reports: { where: { status: "PUBLISHED" }, orderBy: { period: "asc" } }, campaigns: { orderBy: { startDate: "desc" } } } },
+        },
+      },
     },
   });
   if (!offer) notFound();
@@ -36,6 +43,25 @@ export default async function InvestmentPage({ params }: PageProps<"/investments
   const myEntries = deal?.entries.filter((e) => e.offerId === offer.id) ?? [];
   const deposited = depositedFor(myEntries.map((e) => ({ ...e, amount: Number(e.amount) })), offer.id);
   const agreementSigned = offer.documents.some((d) => d.kind === "AGREEMENT" && d.status === "SIGNED");
+  const inExecution = offer.status === "ACCEPTED" && !!deal && (deal.status === "FUNDED" || deal.status === "COMPLETED");
+  // Each month's indicative return for this investor; revenue share is capped across months.
+  let earlier = 0;
+  const returns = new Map<string, { label: string; value: number }>();
+  for (const r of deal?.reports ?? []) {
+    const ret = indicativeReturn({
+      dealType,
+      terms,
+      amount,
+      fundedTotal: Number(deal!.fundedTotal ?? deal!.target),
+      founderCapital: Number(pitch.founderCapital ?? 0),
+      revenue: Number(r.revenue),
+      costs: Number(r.costs),
+      earlierShare: earlier,
+    });
+    if (dealType === "REVENUE_SHARE") earlier += ret.value;
+    returns.set(r.id, ret);
+  }
+  const reportFiles = deal?.reports.length ? await db.storedFile.findMany({ where: { id: { in: deal.reports.flatMap((r) => r.fileIds) } }, select: { id: true, originalName: true } }) : [];
 
   return (
     <>
@@ -52,7 +78,7 @@ export default async function InvestmentPage({ params }: PageProps<"/investments
           </div>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           {offer.status === "ACCEPTED" &&
             offer.documents.map((d) => (
@@ -64,6 +90,24 @@ export default async function InvestmentPage({ params }: PageProps<"/investments
           {deal && offer.status === "ACCEPTED" && (deal.status === "FUNDED" || deal.status === "COMPLETED") && (
             <Card title="Execution milestones" description="Your money is released to the business only as RamiZeeZ verifies each milestone.">
               <MilestoneProgress milestones={pitch.milestones} claims={deal.claims} entries={deal.entries} target={Number(deal.target)} funded={Number(deal.fundedTotal ?? deal.target)} currency={deal.currency} />
+            </Card>
+          )}
+          {inExecution && (
+            <Card title="Monthly reports" description="Written by the founder and reviewed by RamiZeeZ. Figures are unaudited; returns shown are indicative, before any distribution decision under your agreement.">
+              <div className="space-y-4">
+                {[...deal!.reports].reverse().map((r) => {
+                  const ret = returns.get(r.id)!;
+                  return (
+                    <ReportCard key={r.id} report={r} currency={deal!.currency} files={reportFiles} fileHref={(fid) => `/api/reports/${r.id}/files/${fid}`}>
+                      <p className="text-sm">
+                        <span className="text-slate-400">{ret.label}: </span>
+                        <span className={`font-mono ${ret.value < 0 ? "text-rose-300" : "text-brand-200"}`}>{formatMoney(ret.value, deal!.currency)}</span>
+                      </p>
+                    </ReportCard>
+                  );
+                })}
+                {!deal!.reports.length && <p className="text-sm text-slate-500">The first monthly report arrives after the funding month ends.</p>}
+              </div>
             </Card>
           )}
           <Card title="Negotiation">
@@ -82,6 +126,16 @@ export default async function InvestmentPage({ params }: PageProps<"/investments
               <div className="mt-3">
                 <WithdrawOfferForm offerId={offer.id} />
               </div>
+            </Card>
+          )}
+          {inExecution && (
+            <Card title="Company status" actions={<HealthPill health={deal!.health as Health} />}>
+              <p className="text-sm text-slate-400">{deal!.healthNote ?? "RamiZeeZ's execution team tracks the company's progress every month."}</p>
+            </Card>
+          )}
+          {inExecution && deal!.campaigns.length > 0 && (
+            <Card title="Marketing by RamiZeeZ">
+              <CampaignList campaigns={deal!.campaigns} showBudget={false} />
             </Card>
           )}
           {offer.status === "ACCEPTED" && (

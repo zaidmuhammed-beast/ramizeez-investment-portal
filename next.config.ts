@@ -21,7 +21,18 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "40mb" },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Tank join/recording redirects go to third-party video hosts: send them no referrer.
+      { source: "/api/tank/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
   },
 };
 

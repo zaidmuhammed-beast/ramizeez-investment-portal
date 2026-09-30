@@ -10,6 +10,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { requestMeta } from "@/lib/request";
 import { unseal } from "@/lib/keys";
 import { formValues, type FormState } from "@/lib/form-state";
+import { localize } from "@/i18n/server";
 import { createSession, destroySession, getSession, homeFor, requireUser } from "@/lib/auth/session";
 import { getDummyHash, hashSecret, isBreachedPassword, verifySecret } from "@/lib/auth/password";
 import { issueOtp, verifyOtp } from "@/lib/auth/otp";
@@ -47,7 +48,7 @@ const signupSchema = z
   })
   .refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" });
 
-export async function signupAction(_: FormState, fd: FormData): Promise<FormState> {
+async function signup(_: FormState, fd: FormData): Promise<FormState> {
   const values = formValues(fd);
   const { ip } = await requestMeta();
   const rl = rateLimit(`signup:${ip}`, 5, 60 * 60 * 1000);
@@ -94,7 +95,7 @@ export async function signupAction(_: FormState, fd: FormData): Promise<FormStat
 const loginSchema = z.object({ email: z.string().trim().toLowerCase(), password: z.string().min(1) });
 const INVALID = "Incorrect email or password";
 
-export async function loginAction(_: FormState, fd: FormData): Promise<FormState> {
+async function login(_: FormState, fd: FormData): Promise<FormState> {
   const values = formValues(fd);
   const { ip } = await requestMeta();
   const rl = rateLimit(`login:${ip}`, 20, 15 * 60 * 1000);
@@ -137,7 +138,7 @@ export async function loginAction(_: FormState, fd: FormData): Promise<FormState
   redirect(homeFor(user));
 }
 
-export async function secondFactorAction(_: FormState, fd: FormData): Promise<FormState> {
+async function secondFactor(_: FormState, fd: FormData): Promise<FormState> {
   const session = await getSession();
   if (!session || session.stage !== "PENDING_2FA") redirect("/login");
   const rl = rateLimit(`2fa:${session.id}`, 5, 10 * 60 * 1000);
@@ -186,7 +187,7 @@ export async function logoutAction() {
 
 // ─── Contact verification ─────────────────────────────────────────────────────
 
-export async function verifyContactAction(_: FormState, fd: FormData): Promise<FormState> {
+async function verifyContact(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser("contact");
   const channel = fd.get("channel") === "PHONE" ? "PHONE" : "EMAIL";
   const intent = fd.get("intent");
@@ -219,7 +220,7 @@ export async function verifyContactAction(_: FormState, fd: FormData): Promise<F
 
 // ─── Two-factor setup ─────────────────────────────────────────────────────────
 
-export async function confirmTotpAction(_: FormState, fd: FormData): Promise<FormState> {
+async function confirmTotp(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser("2fa");
   if (user.totpEnabledAt) redirect(homeFor(user));
   if (!user.totpSecretEnc) return { message: "Setup expired. Reload the page to get a new QR code." };
@@ -245,7 +246,7 @@ const changeSchema = z
   .refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" })
   .refine((v) => v.password !== v.current, { path: ["password"], message: "Choose a password different from the current one" });
 
-export async function changePasswordAction(_: FormState, fd: FormData): Promise<FormState> {
+async function changePassword(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser("password");
   const parsed = changeSchema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
@@ -260,3 +261,11 @@ export async function changePasswordAction(_: FormState, fd: FormData): Promise<
   await audit("auth.password.changed", { actorId: user.id });
   redirect(homeFor(user));
 }
+
+// Every result is translated into the visitor's language (redirects pass straight through).
+export const signupAction = async (s: FormState, fd: FormData) => localize(await signup(s, fd));
+export const loginAction = async (s: FormState, fd: FormData) => localize(await login(s, fd));
+export const secondFactorAction = async (s: FormState, fd: FormData) => localize(await secondFactor(s, fd));
+export const verifyContactAction = async (s: FormState, fd: FormData) => localize(await verifyContact(s, fd));
+export const confirmTotpAction = async (s: FormState, fd: FormData) => localize(await confirmTotp(s, fd));
+export const changePasswordAction = async (s: FormState, fd: FormData) => localize(await changePassword(s, fd));

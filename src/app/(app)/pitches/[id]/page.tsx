@@ -20,6 +20,11 @@ import { cn } from "@/components/ui/cn";
 import { withdrawPitchAction } from "../actions";
 import { AccessDecisionButtons, AskForm, ConfidentialityForm, ListForm, MediaForm, SectionForm, SubmitForm } from "./forms";
 import { InvestorInterest } from "@/components/pitch/investor-interest";
+import { StatusPill } from "@/components/deals/views";
+import { LocalTime } from "@/components/local-time";
+import { SLOT } from "@/components/tank/views";
+import { InviteResponseForm } from "@/components/tank/forms";
+import { tankPhase } from "@/lib/tank/rules";
 import { CONFIDENTIAL_CANDIDATES } from "@/lib/investor/disclosure";
 
 export const metadata: Metadata = { title: "Pitch builder" };
@@ -51,6 +56,7 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
       milestones: true,
       events: { orderBy: { createdAt: "desc" } },
       submissions: { orderBy: { version: "desc" }, take: 1 },
+      tankSlots: { where: { session: { status: "SCHEDULED" } }, include: { session: true }, orderBy: { session: { startsAt: "asc" } } },
     },
   });
   if (!pitch) notFound();
@@ -113,7 +119,7 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
       <>
         {header}
         {alerts}
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_320px]">
           <PitchView pitch={data} files={files} />
           <aside className="space-y-6">
             {editable && (
@@ -142,6 +148,17 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
                 <p className="mt-1 text-xs text-slate-400">Offers, investor questions, agreements, escrow and milestones.</p>
               </Card>
             )}
+            {pitch.tankSlots.map((slot) => (
+              <Card key={slot.id} strong title="Tank session invitation" description={slot.session.title} actions={<StatusPill map={SLOT} status={slot.status} />}>
+                <p className="mb-4 text-sm text-slate-300">
+                  <LocalTime iso={slot.session.startsAt.toISOString()} /> · {slot.session.durationMin} minutes
+                </p>
+                {slot.status === "INVITED" && ["UPCOMING", "OPENING"].includes(tankPhase(slot.session, new Date())) && <InviteResponseForm tankPitchId={slot.id} />}
+                <Link href={`/sessions/${slot.sessionId}`} className="mt-3 inline-block text-sm text-brand-300 hover:underline">
+                  Session details →
+                </Link>
+              </Card>
+            ))}
             {pitch.status === "LISTED" && (
               <InvestorInterest pitchId={pitch.id} audience="FOUNDER" renderDecision={(id) => <AccessDecisionButtons requestId={id} />} />
             )}
@@ -159,7 +176,7 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
     <>
       {header}
       {alerts}
-      <div className="grid gap-6 lg:grid-cols-[250px_1fr]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[250px_1fr]">
         <nav className="glass h-fit space-y-1 rounded-2xl p-3" aria-label="Pitch sections">
           {sections.map((x, i) => {
             const open = bySection[x.key]?.length ?? 0;

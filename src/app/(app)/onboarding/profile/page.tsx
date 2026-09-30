@@ -54,7 +54,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/onboardi
         description="Tier 2. Tell us who you are beyond your ID. Our team reads every profile, and a thoughtful, honest profile speeds up approval."
         actions={<StepStatusBadge status={state.steps.profile} />}
       />
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[240px_1fr]">
         <nav className="glass h-fit space-y-1 rounded-2xl p-3" aria-label="Profile sections">
           {SECTIONS.map((x) => (
             <Link

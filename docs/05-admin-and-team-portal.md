@@ -44,3 +44,13 @@ Every sensitive action requires 2FA. High-risk actions (releasing funds, approvi
 | Approve milestone evidence | Execution Manager (`deals.execution`) | A note is required to send it back |
 
 Every step is audit-logged, and the parties are emailed at each stage.
+
+## 5.4 Tank, execution & marketing (built)
+
+| Area | Who (permission) | What they do |
+|------|------------------|--------------|
+| Tank sessions `/admin/tank` | Deal Analyst, Marketing (`tank.manage`) | Schedule sessions from listed pitches, add the meeting and recording links, approve seats up to capacity, host as moderator, complete the session to open data rooms for attendees |
+| Execution `/admin/execution` | Execution Manager (`deals.execution`) | Assign a manager, set the company's status, add tasks (for the team or the founder), review and publish monthly investor reports, send overdue-report reminders |
+| Marketing `/admin/marketing` | Marketing, Execution Manager (`marketing.manage`) | Campaigns per funded business with results and conversion rates, plus marketing tasks. No KYC documents or deal financials. |
+
+Every step is audit-logged. Founders and investors are emailed when it matters to them: invitations, seat decisions, published reports, and status changes to or from "at risk".

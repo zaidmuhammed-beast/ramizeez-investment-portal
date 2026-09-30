@@ -10,6 +10,6 @@ const MAP: Record<StepStatus, { tone: BadgeTone; label: string }> = {
   done: { tone: "green", label: "Complete" },
 };
 
-export function StepStatusBadge({ status }: { status: StepStatus }) {
-  return <Badge tone={MAP[status].tone}>{MAP[status].label}</Badge>;
+export function StepStatusBadge({ status, labels }: { status: StepStatus; labels?: Record<StepStatus, string> }) {
+  return <Badge tone={MAP[status].tone}>{labels?.[status] ?? MAP[status].label}</Badge>;
 }

@@ -50,12 +50,18 @@ export async function decideAccessRequest(opts: {
   return null;
 }
 
-/** Emails verified investors whose preferences match a newly listed pitch. Returns how many were notified. */
-export async function notifyMatchingInvestors(pitchId: string): Promise<number> {
+/**
+ * Emails verified investors whose preferences match a listed pitch. Returns how many were notified.
+ * By default this announces a new listing; `message` customises it (e.g. for a Tank session).
+ */
+export async function notifyMatchingInvestors(
+  pitchId: string,
+  opts?: { minTier?: number; subject: string; message: (firstName: string, ref: string) => string },
+): Promise<number> {
   const pitch = await db.pitch.findUnique({ where: { id: pitchId } });
   if (!pitch || pitch.status !== "LISTED") return 0;
   const investors = await db.investorProfile.findMany({
-    where: { verifiedBudget: { not: null }, user: { status: "ACTIVE", tier: { gte: 3 } } },
+    where: { verifiedBudget: { not: null }, user: { status: "ACTIVE", tier: { gte: opts?.minTier ?? 3 } } },
     include: { user: { select: { id: true, email: true, firstName: true } } },
   });
   const ref = pitchRef(pitch.id);
@@ -71,6 +77,11 @@ export async function notifyMatchingInvestors(pitchId: string): Promise<number> 
       country: pitch.country,
     });
     if (!m.eligible || !m.preferred) continue;
+    if (opts) {
+      await sendMessage("EMAIL", inv.user.email, opts.subject, opts.message(inv.user.firstName, ref));
+      sent++;
+      continue;
+    }
     await sendMessage(
       "EMAIL",
       inv.user.email,

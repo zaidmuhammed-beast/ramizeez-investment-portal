@@ -9,6 +9,9 @@ import { Card, PageHeader } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { DEAL_STATUS, DocumentCard, EscrowLedger, MilestoneProgress, OFFER_STATUS, OfferThread, StatusPill } from "@/components/deals/views";
 import { AnswerQuestionForm, ClaimForm, RespondOfferForm, SignForm } from "@/components/deals/forms";
+import { periodLabel, reportSchedule, type Health } from "@/lib/execution/rules";
+import { CampaignList, HealthPill, ReportCard, ReportStatePill, TaskList } from "@/components/execution/views";
+import { ReportForm, TaskStatusForm } from "@/components/execution/forms";
 
 export const metadata: Metadata = { title: "Deal room" };
 
@@ -19,7 +22,16 @@ export default async function FounderDealPage({ params }: PageProps<"/pitches/[i
     where: { id, founderId: user.id },
     include: {
       milestones: true,
-      deal: { include: { entries: { orderBy: { createdAt: "asc" } }, claims: true } },
+      deal: {
+        include: {
+          entries: { orderBy: { createdAt: "asc" } },
+          claims: true,
+          manager: { select: { firstName: true, lastName: true } },
+          tasks: { where: { forFounder: true }, orderBy: [{ status: "asc" }, { dueDate: "asc" }] },
+          reports: { orderBy: { period: "desc" } },
+          campaigns: { orderBy: { startDate: "desc" } },
+        },
+      },
       questions: { where: { status: { in: ["OPEN", "ANSWERED"] } }, orderBy: { createdAt: "desc" } },
       offers: {
         where: { status: { not: "WITHDRAWN" } },
@@ -37,6 +49,11 @@ export default async function FounderDealPage({ params }: PageProps<"/pitches/[i
   // Investors stay anonymous to founders: numbered in the order they made offers.
   const label = (offerId: string) => `Investor ${pitch.offers.findIndex((o) => o.id === offerId) + 1}`;
   const fmt = (n: number) => formatMoney(n, pitch.currency);
+  const now = new Date();
+  const inExecution = !!deal && (deal.status === "FUNDED" || deal.status === "COMPLETED");
+  const schedule = deal?.fundedAt ? reportSchedule(deal.fundedAt, now, deal.reports) : [];
+  const openPeriods = schedule.filter((x) => x.state === "DUE" || x.state === "OVERDUE" || x.state === "RETURNED").map((x) => x.period);
+  const reportFiles = deal?.reports.length ? await db.storedFile.findMany({ where: { id: { in: deal.reports.flatMap((r) => r.fileIds) }, ownerId: user.id }, select: { id: true, originalName: true } }) : [];
 
   return (
     <>
@@ -65,7 +82,7 @@ export default async function FounderDealPage({ params }: PageProps<"/pitches/[i
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           {pitch.offers.map((o) => {
             const terms = o.terms as OfferTerms;
@@ -98,6 +115,30 @@ export default async function FounderDealPage({ params }: PageProps<"/pitches/[i
             </Card>
           )}
 
+          {deal && inExecution && (
+            <Card title="Monthly investor reports" description="Due by the 10th of each month for the month before. RamiZeeZ reviews each report before your investors see it.">
+              <ul className="mb-5 flex flex-wrap gap-2">
+                {schedule.map((x) => (
+                  <li key={x.period} className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300">
+                    {periodLabel(x.period)} <ReportStatePill state={x.state} />
+                  </li>
+                ))}
+                {!schedule.length && <li className="text-sm text-slate-500">Your first report is due after this month ends.</li>}
+              </ul>
+              {openPeriods.length > 0 && (
+                <div className="mb-6 rounded-2xl border border-gold-400/30 bg-gold-400/5 p-5">
+                  <h3 className="mb-3 font-medium text-white">Submit a report</h3>
+                  <ReportForm dealId={deal.id} currency={deal.currency} periods={openPeriods.map((p) => ({ value: p, label: periodLabel(p) }))} />
+                </div>
+              )}
+              <div className="space-y-4">
+                {deal.reports.map((r) => (
+                  <ReportCard key={r.id} report={r} currency={deal.currency} files={reportFiles} fileHref={(fid) => `/api/reports/${r.id}/files/${fid}`} />
+                ))}
+              </div>
+            </Card>
+          )}
+
           {deal && (deal.status === "FUNDED" || deal.status === "COMPLETED") && (
             <Card title="Milestones" description="Submit evidence when a milestone is done. Once RamiZeeZ verifies it, the milestone's funds are released from escrow.">
               <MilestoneProgress
@@ -114,6 +155,22 @@ export default async function FounderDealPage({ params }: PageProps<"/pitches/[i
         </div>
 
         <aside className="space-y-6">
+          {deal && inExecution && (
+            <Card title="Your RamiZeeZ team" actions={<HealthPill health={deal.health as Health} />}>
+              <p className="text-sm text-slate-300">{deal.manager ? `Execution manager: ${deal.manager.firstName} ${deal.manager.lastName}` : "An execution manager will be assigned shortly."}</p>
+              {deal.healthNote && <p className="mt-2 text-sm text-slate-400">{deal.healthNote}</p>}
+            </Card>
+          )}
+          {deal && inExecution && (
+            <Card title="Tasks from RamiZeeZ">
+              <TaskList tasks={deal.tasks} now={now} renderAction={(t) => (t.status === "DONE" ? null : <TaskStatusForm taskId={t.id} status={t.status} founder />)} />
+            </Card>
+          )}
+          {deal && inExecution && deal.campaigns.length > 0 && (
+            <Card title="Marketing by RamiZeeZ">
+              <CampaignList campaigns={deal.campaigns} />
+            </Card>
+          )}
           <Card title="Investor questions" description="Moderated by RamiZeeZ.">
             <ul className="space-y-4">
               {pitch.questions.map((q) => (

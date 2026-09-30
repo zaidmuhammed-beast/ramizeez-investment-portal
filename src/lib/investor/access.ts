@@ -8,6 +8,7 @@ import { matchPitch, type InvestorPrefs, type Match } from "./matching";
 import { windowStart, summaryQuota } from "./activity";
 import type { Level } from "./disclosure";
 import { INVESTOR_LIMITS } from "@/config/platform";
+import { TANK_NDA_VERSION } from "@/config/nda";
 
 export function prefsOf(inv: InvestorProfile): InvestorPrefs {
   return {
@@ -44,8 +45,9 @@ export async function investorContext(user: CurrentUser) {
 export async function quotaUsage(investorId: string, tier: number) {
   const since = windowStart();
   const [unlocks, requests] = await Promise.all([
-    db.ndaSignature.count({ where: { investorId, signedAt: { gte: since } } }),
-    db.accessRequest.count({ where: { investorId, createdAt: { gte: since } } }),
+    // Access granted by attending a Tank session doesn't use up the monthly quotas.
+    db.ndaSignature.count({ where: { investorId, signedAt: { gte: since }, version: { not: TANK_NDA_VERSION } } }),
+    db.accessRequest.count({ where: { investorId, createdAt: { gte: since }, OR: [{ decidedAs: null }, { decidedAs: { not: "TANK" } }] } }),
   ]);
   return {
     unlocks,

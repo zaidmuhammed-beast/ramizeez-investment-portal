@@ -54,6 +54,7 @@ model User {
   statusReason       String?
   tier               Int           @default(0)
   mustChangePassword Boolean       @default(false)
+  locale             String        @default("en") // "en" | "ur"
 
   totpSecretEnc String?
   totpEnabledAt DateTime?
@@ -105,6 +106,15 @@ model User {
   escrowRecorded     EscrowEntry[]         @relation("EscrowRecorder")
   escrowApproved     EscrowEntry[]         @relation("EscrowApprover")
   claimsReviewed     MilestoneClaim[]
+  tankSessions       TankSession[]
+  tankSeats          TankSeat[]            @relation("SeatHolder")
+  tankSeatDecisions  TankSeat[]            @relation("SeatDecider")
+  tankInterests      TankInterest[]
+  managedDeals       Deal[]                @relation("DealManager")
+  tasksAssigned      DealTask[]            @relation("TaskAssignee")
+  tasksCreated       DealTask[]            @relation("TaskCreator")
+  campaigns          Campaign[]
+  reportsReviewed    InvestorReport[]      @relation("ReportReviewer")
 }
 
 enum SessionStage {
@@ -185,6 +195,7 @@ enum FileKind {
   PITCH_IMAGE
   PITCH_DOCUMENT
   MILESTONE_EVIDENCE
+  INVESTOR_REPORT
   OTHER
 }
 
@@ -668,6 +679,8 @@ model Pitch {
   questions      PitchQuestion[]
   offers         Offer[]
   deal           Deal?
+  tankSlots      TankPitch[]
+  tankInterests  TankInterest[]
 
   @@index([founderId])
   @@index([status])
@@ -946,8 +959,18 @@ model Deal {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  entries EscrowEntry[]
-  claims  MilestoneClaim[]
+  // Execution (Phase 6)
+  managerId       String?
+  manager         User?      @relation("DealManager", fields: [managerId], references: [id])
+  health          DealHealth @default(GREEN)
+  healthNote      String?
+  healthUpdatedAt DateTime?
+
+  entries   EscrowEntry[]
+  claims    MilestoneClaim[]
+  tasks     DealTask[]
+  campaigns Campaign[]
+  reports   InvestorReport[]
 }
 
 enum DocumentKind {
@@ -1068,6 +1091,210 @@ model MilestoneClaim {
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
+
+// ─── Phase 6: Tank sessions ───────────────────────────────────────────────────
+
+enum TankStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+/// A live pitch event. Upcoming/live/ended is derived from the time; only terminal states are stored.
+model TankSession {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?
+  startsAt        DateTime
+  durationMin     Int
+  capacity        Int
+  status          TankStatus @default(SCHEDULED)
+  videoProvider   String // link | jitsi | daily
+  roomName        String?
+  joinUrlEnc      String? // encrypted: never sent to the browser, only used by the audited join redirect
+  recordingUrlEnc String?
+  createdById     String
+  createdBy       User       @relation(fields: [createdById], references: [id])
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  pitches   TankPitch[]
+  seats     TankSeat[]
+  interests TankInterest[]
+
+  @@index([startsAt])
+}
+
+enum TankPitchStatus {
+  INVITED
+  CONFIRMED
+  DECLINED
+}
+
+model TankPitch {
+  id          String          @id @default(cuid())
+  sessionId   String
+  session     TankSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  pitchId     String
+  pitch       Pitch           @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  position    Int
+  status      TankPitchStatus @default(INVITED)
+  // The founder lets attending investors into the full data room after the session.
+  grantAccess Boolean         @default(true)
+  respondedAt DateTime?
+
+  @@unique([sessionId, pitchId])
+}
+
+enum SeatStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+model TankSeat {
+  id          String      @id @default(cuid())
+  sessionId   String
+  session     TankSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation("SeatHolder", fields: [userId], references: [id], onDelete: Cascade)
+  status      SeatStatus  @default(REQUESTED)
+  typedName   String // session NDA signature
+  ndaHash     String
+  ip          String?
+  decidedById String?
+  decidedBy   User?       @relation("SeatDecider", fields: [decidedById], references: [id])
+  decidedAt   DateTime?
+  joinedAt    DateTime?
+  joinCount   Int         @default(0)
+  requestedAt DateTime    @default(now())
+
+  @@unique([sessionId, userId])
+}
+
+/// "I'm in": an investor's live expression of interest in a pitch during a session.
+model TankInterest {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    TankSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  pitchId    String
+  pitch      Pitch       @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId String
+  investor   User        @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  amount     Decimal     @db.Decimal(18, 2)
+  currency   String
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@unique([sessionId, pitchId, investorId])
+}
+
+// ─── Phase 6: execution, marketing & investor reports ─────────────────────────
+
+enum DealHealth {
+  GREEN
+  AMBER
+  RED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum TaskArea {
+  EXECUTION
+  MARKETING
+  LEGAL
+  FINANCE
+}
+
+model DealTask {
+  id          String     @id @default(cuid())
+  dealId      String
+  deal        Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  title       String
+  detail      String?
+  area        TaskArea   @default(EXECUTION)
+  status      TaskStatus @default(TODO)
+  forFounder  Boolean    @default(false) // shown to, and updatable by, the founder
+  assigneeId  String?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  dueDate     DateTime?
+  founderNote String?
+  createdById String
+  createdBy   User       @relation("TaskCreator", fields: [createdById], references: [id])
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([dealId, status])
+}
+
+enum CampaignStatus {
+  PLANNED
+  LIVE
+  ENDED
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  dealId      String
+  deal        Deal           @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  name        String
+  channel     String
+  objective   String
+  budget      Decimal?       @db.Decimal(18, 2)
+  currency    String
+  startDate   DateTime
+  endDate     DateTime?
+  status      CampaignStatus @default(PLANNED)
+  reach       Int?
+  leads       Int?
+  conversions Int?
+  resultsNote String?
+  ownerId     String
+  owner       User           @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+enum ReportStatus {
+  SUBMITTED
+  RETURNED
+  PUBLISHED
+}
+
+/// A founder's monthly report to the round's investors, reviewed by RamiZeeZ before publishing.
+model InvestorReport {
+  id          String       @id @default(cuid())
+  dealId      String
+  deal        Deal         @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  period      String // YYYY-MM
+  revenue     Decimal      @db.Decimal(18, 2)
+  costs       Decimal      @db.Decimal(18, 2)
+  cashInBank  Decimal?     @db.Decimal(18, 2)
+  customers   Int?
+  keyMetric   String?
+  highlights  String
+  challenges  String
+  asks        String?
+  fileIds     String[]
+  status      ReportStatus @default(SUBMITTED)
+  reviewerId  String?
+  reviewer    User?        @relation("ReportReviewer", fields: [reviewerId], references: [id])
+  commentary  String? // RamiZeeZ's note to investors
+  returnNote  String? // what the founder must fix
+  submittedAt DateTime     @default(now())
+  publishedAt DateTime?
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([dealId, period])
+}
 
 model AuditLog {
   id         String   @id @default(cuid())

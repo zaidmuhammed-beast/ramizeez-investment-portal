@@ -7,9 +7,10 @@ import { initialFormState } from "@/lib/form-state";
 import { SubmitButton } from "@/components/ui/button";
 import { Checkbox, CheckboxGroup, Form, SelectField, TextField } from "@/components/ui/form";
 import { PasswordStrength } from "@/components/password-strength";
+import type { Dict } from "@/i18n/dictionaries/en";
 import { signupAction } from "../actions";
 
-export function SignupForm({ countries, preselectedRoles }: { countries: Country[]; preselectedRoles: string[] }) {
+export function SignupForm({ countries, preselectedRoles, t, rules, select }: { countries: Country[]; preselectedRoles: string[]; t: Dict["auth"]["signup"]; rules: string[]; select: string }) {
   const [state, action] = useActionState(signupAction, initialFormState);
   const [password, setPassword] = useState("");
   const countryOptions = countries.map((c) => ({ value: c.code, label: c.name }));
@@ -19,49 +20,49 @@ export function SignupForm({ countries, preselectedRoles }: { countries: Country
     <Form state={state} action={action}>
       <CheckboxGroup
         name="roles"
-        label="I am joining as"
+        label={t.joiningAs}
         required
         defaultValue={preselectedRoles}
         options={[
-          { value: "FOUNDER", label: "Founder: I want to pitch" },
-          { value: "INVESTOR", label: "Investor: I want to invest" },
+          { value: "FOUNDER", label: t.founder },
+          { value: "INVESTOR", label: t.investor },
         ]}
-        hint="You can hold both roles. Each role is verified separately."
+        hint={t.rolesHint}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField name="firstName" label="First name" autoComplete="given-name" required hint="Exactly as on your ID" />
-        <TextField name="lastName" label="Last name" autoComplete="family-name" required hint="Exactly as on your ID" />
+        <TextField name="firstName" label={t.firstName} autoComplete="given-name" required hint={t.asOnId} />
+        <TextField name="lastName" label={t.lastName} autoComplete="family-name" required hint={t.asOnId} />
       </div>
-      <TextField name="email" label="Email" type="email" autoComplete="email" required />
-      <SelectField name="countryOfResidence" label="Country of residence" options={countryOptions} required defaultValue="PK" />
+      <TextField name="email" label={t.email} type="email" autoComplete="email" required />
+      <SelectField name="countryOfResidence" label={t.country} options={countryOptions} required defaultValue="PK" placeholder={select} />
       <div className="grid gap-4 sm:grid-cols-[1fr_1.2fr]">
-        <SelectField name="phoneCountry" label="Phone country code" options={dialOptions} required defaultValue="PK" />
-        <TextField name="phone" label="Mobile number" type="tel" autoComplete="tel-national" required placeholder="300 1234567" />
+        <SelectField name="phoneCountry" label={t.phoneCountry} options={dialOptions} required defaultValue="PK" placeholder={select} />
+        <TextField name="phone" label={t.phone} type="tel" autoComplete="tel-national" required placeholder="300 1234567" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <TextField
             name="password"
-            label="Password"
+            label={t.password}
             type="password"
             autoComplete="new-password"
             required
             onChange={(e) => setPassword(e.target.value)}
           />
-          <PasswordStrength password={password} />
+          <PasswordStrength password={password} labels={rules} />
         </div>
-        <TextField name="confirmPassword" label="Confirm password" type="password" autoComplete="new-password" required />
+        <TextField name="confirmPassword" label={t.confirmPassword} type="password" autoComplete="new-password" required />
       </div>
       <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.02] p-4">
         <Checkbox
           name="acceptTerms"
           label={
             <>
-              I agree to the{" "}
+              {t.termsBefore}{" "}
               <Link href="/legal/terms" className="text-brand-300 underline-offset-2 hover:underline" target="_blank">
-                Terms of Use
+                {t.termsLink}
               </Link>
-              , including the non-circumvention rules.
+              {t.termsAfter}
             </>
           }
         />
@@ -69,17 +70,17 @@ export function SignupForm({ countries, preselectedRoles }: { countries: Country
           name="acceptPrivacy"
           label={
             <>
-              I consent to identity verification, sanctions screening and background checks, as described in the{" "}
+              {t.privacyBefore}{" "}
               <Link href="/legal/privacy" className="text-brand-300 underline-offset-2 hover:underline" target="_blank">
-                Privacy Policy
+                {t.privacyLink}
               </Link>
-              .
+              {t.privacyAfter}
             </>
           }
         />
       </div>
-      <SubmitButton className="w-full py-3" pendingText="Creating account…">
-        Create account
+      <SubmitButton className="w-full py-3" pendingText={t.submitting}>
+        {t.submit}
       </SubmitButton>
     </Form>
   );

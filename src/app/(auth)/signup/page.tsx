@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { COUNTRIES } from "@/lib/countries";
 import { Card } from "@/components/ui/card";
+import { getDict } from "@/i18n/server";
 import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "Create your account" };
@@ -9,17 +10,19 @@ export const metadata: Metadata = { title: "Create your account" };
 export default async function SignupPage({ searchParams }: PageProps<"/signup">) {
   const { role } = await searchParams;
   const preselected = role === "INVESTOR" || role === "FOUNDER" ? [role] : [];
+  const d = await getDict();
+  const t = d.auth.signup;
   return (
     <Card
       strong
-      title="Create your account"
-      description="Step 1 of 5. Every account is identity-verified before it can pitch or invest."
+      title={t.title}
+      description={t.description}
     >
-      <SignupForm countries={COUNTRIES} preselectedRoles={preselected} />
+      <SignupForm countries={COUNTRIES} preselectedRoles={preselected} t={t} rules={d.passwordRules} select={d.common.select} />
       <p className="mt-6 text-center text-sm text-slate-400">
-        Already have an account?{" "}
+        {t.haveAccount}{" "}
         <Link href="/login" className="font-medium text-brand-300 hover:text-brand-200">
-          Sign in
+          {d.common.signIn}
         </Link>
       </p>
     </Card>

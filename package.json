@@ -13,9 +13,11 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "gen:keys": "node -e \"for (const k of ['DATA_ENCRYPTION_KEY','BLIND_INDEX_KEY']) console.log(k + '=\\\"' + require('crypto').randomBytes(32).toString('base64') + '\\\"')\"",
+    "gen:icons": "tsx scripts/make-icons.mts",
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/noto-nastaliq-urdu": "^5.3.0",
     "@node-rs/argon2": "^2.2.1",
     "@prisma/client": "^6.19.3",
     "countries-list": "^3.4.1",

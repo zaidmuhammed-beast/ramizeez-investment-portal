@@ -73,7 +73,7 @@ export default async function CasePage({ params }: PageProps<"/admin/cases/[id]"
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <Card title="Automated checks" description={`Provider: ${c.provider} · submitted ${c.createdAt.toUTCString()}`}>
             <ChecksTable checks={checks} />

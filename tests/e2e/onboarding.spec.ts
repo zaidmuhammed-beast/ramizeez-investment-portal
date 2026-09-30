@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { base32Decode } from "../../src/lib/auth/totp";
 import { createHmac } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
 // Full journey: investor signs up → verifies contact → 2FA → identity (live camera + liveness)
 // → deep profile → role verification → final approval, with two different team members
@@ -98,7 +99,7 @@ async function decide(page: Page, caseName: string, decision: string, extra?: (p
   await expect(page.getByText(new RegExp(`${decision.toLowerCase().replace("_", " ")} by`))).toBeVisible();
 }
 
-test("founder-investor onboarding, pitch, listing and a funded deal", async ({ browser }) => {
+test("founder-investor onboarding, pitch, listing, Tank session, funded deal and execution", async ({ browser }) => {
   const userCtx = await browser.newContext();
   const adminCtx = await browser.newContext();
   const committeeCtx = await browser.newContext();
@@ -563,11 +564,98 @@ test("founder-investor onboarding, pitch, listing and a funded deal", async ({ b
   await page.reload();
   await expect(page.getByText("Opened the data room")).toBeVisible();
 
+  const opportunityUrl = inv2.url();
+  // ── Phase 6a: a live Tank session ──
+  const travel = (kind: "session" | "deal", id: string, minutes: number) =>
+    execFileSync("npx", ["tsx", "--env-file=.env", "tests/e2e/time-travel.ts", kind, id, String(minutes)], { stdio: "ignore" });
+  const sessionTitle = `Food & agri Tank ${stamp}`;
+  const inTwoDays = new Date(Date.now() + 2 * 24 * 3600_000);
+  const localInput = `${inTwoDays.getFullYear()}-${String(inTwoDays.getMonth() + 1).padStart(2, "0")}-${String(inTwoDays.getDate()).padStart(2, "0")}T15:00`;
+  await admin.goto("/admin/tank");
+  await admin.getByLabel("Title").fill(sessionTitle);
+  await admin.getByLabel("Description (public)").fill("Food, dairy and agriculture businesses pitch live to matched investors.");
+  await admin.getByLabel("Starts (your local time)").fill(localInput);
+  await admin.getByLabel("Length (minutes)").fill("60");
+  await admin.getByLabel("Investor seats").fill("10");
+  await admin.getByLabel(new RegExp(ref)).check();
+  await admin.getByLabel(/Meeting link/).fill("https://meet.example.com/rz-e2e");
+  await shot(admin, "32-admin-schedule-tank");
+  await admin.getByRole("button", { name: "Schedule session" }).click();
+  await expect(admin).toHaveURL(/\/admin\/tank\/\w+/);
+  const sessionId = admin.url().split("/").pop()!;
+  const sessionUrl = `/sessions/${sessionId}`;
+
+  // The public events page lists the session without naming the business.
+  const stranger = await (await browser.newContext()).newPage();
+  await stranger.goto("/tank");
+  await expect(stranger.getByRole("heading", { name: sessionTitle })).toBeVisible();
+  await expect(stranger.getByText("Traceable dairy")).toHaveCount(0);
+
+  // The founder confirms and opens the data room to attendees.
+  await page.goto(pitchUrl);
+  const invite = page.locator("section").filter({ hasText: "Tank session invitation" }).filter({ hasText: sessionTitle });
+  await expect(invite.getByLabel(/Open my full data room/)).toBeChecked();
+  await invite.getByRole("button", { name: "Confirm I'll pitch" }).click();
+  await expect(invite.getByText("Confirmed", { exact: true })).toBeVisible();
+
+  // The investor signs the session NDA and requests a seat; the team approves it.
+  await inv2.goto("/sessions");
+  await inv2.getByRole("link", { name: new RegExp(sessionTitle) }).click();
+  await expect(inv2.getByText(/Tank session confidentiality agreement/).first()).toBeVisible();
+  await inv2.getByLabel("Type your full legal name to sign").fill(seeded.name);
+  await inv2.getByLabel(/I have read and agree to the session confidentiality agreement/).check();
+  await inv2.getByRole("button", { name: "Sign & request a seat" }).click();
+  await expect(inv2.getByText("Seat requested", { exact: true })).toBeVisible();
+  await admin.reload();
+  await admin.getByRole("row").filter({ hasText: seeded.name }).getByRole("button", { name: "Approve seat" }).click();
+  await expect(admin.getByRole("row").filter({ hasText: seeded.name })).toContainText("Seat confirmed");
+
+  // Ten minutes into the session: the personal join link redirects to the room and records attendance.
+  travel("session", sessionId, -10);
+  await inv2.goto(sessionUrl);
+  await expect(inv2.getByRole("link", { name: /Join the session/ })).toBeVisible();
+  const join = await inv2.request.get(`/api/tank/${sessionId}/join`, { maxRedirects: 0 });
+  expect(join.status()).toBe(303);
+  expect(join.headers()["location"]).toBe("https://meet.example.com/rz-e2e");
+  expect(join.headers()["referrer-policy"]).toBe("no-referrer");
+  // No seat, no link: the page source never contains the room either.
+  expect(await inv2.content()).not.toContain("meet.example.com");
+  const noSeat = await committee.request.get(`/api/tank/${sessionId}/join`, { maxRedirects: 0 });
+  expect(noSeat.headers()["location"]).toContain("error=");
+  const anon = await stranger.request.get(`/api/tank/${sessionId}/join`, { maxRedirects: 0 });
+  expect(anon.headers()["location"]).toContain("/login");
+
+  // "I'm in" during the session; the founder sees it anonymously.
+  await inv2.reload();
+  await inv2.getByLabel(/I'm in for/).fill("500000");
+  await inv2.getByLabel("Note to the founder (optional)").fill("Loved the traceability story.");
+  await inv2.getByRole("button", { name: "I'm in" }).click();
+  await expect(inv2.getByRole("button", { name: "Update" })).toBeVisible();
+  await shot(inv2, "33-investor-tank-live");
+  await page.goto(sessionUrl);
+  await expect(page.getByText(/1 investor said “I'm in”, for PKR 500,000 in total/)).toBeVisible();
+  await expect(page.getByText("Sara Qureshi")).toHaveCount(0);
+  await shot(page, "34-founder-tank-session");
+
+  // The host adds the recording and completes the session; attendees can watch it back.
+  await admin.reload();
+  await expect(admin.getByText(/Sara Qureshi: PKR 500,000/)).toBeVisible();
+  await admin.getByLabel("Recording link").fill("https://recordings.example.com/rz-e2e");
+  await admin.locator("form").filter({ has: admin.getByLabel("Recording link") }).getByRole("button", { name: "Save" }).click();
+  await expect(admin.getByText("A recording is set.")).toBeVisible();
+  await admin.getByRole("button", { name: "Mark session complete" }).click();
+  await expect(admin.getByText("Completed", { exact: true }).first()).toBeVisible();
+  await shot(admin, "35-admin-tank-session");
+  await inv2.reload();
+  await expect(inv2.getByRole("link", { name: /Watch the recording/ })).toBeVisible();
+  const rec = await inv2.request.get(`/api/tank/${sessionId}/recording`, { maxRedirects: 0 });
+  expect(rec.headers()["location"]).toBe("https://recordings.example.com/rz-e2e");
+  await inv2.goto(opportunityUrl);
+
   // ── Phase 5: Q&A, negotiation, signatures, escrow and a milestone release ──
   const finance = JSON.parse(process.env.E2E_FINANCE!) as { email: string; password: string; secret: string; name: string };
   const fin = await (await browser.newContext()).newPage();
   const dealRoom = `${pitchUrl}/deal`;
-  const opportunityUrl = inv2.url();
   const founderName = fullName;
   const adminName = "RamiZeeZ Admin";
   const signed = (p: Page, name: string) => p.getByText(`✓ ${name}`, { exact: true });
@@ -646,9 +734,7 @@ test("founder-investor onboarding, pitch, listing and a funded deal", async ({ b
   const agreementPdf = await inv2.request.get((await docLinks.last().getAttribute("href"))!);
   expect(agreementPdf.headers()["content-type"]).toBe("application/pdf");
   expect((await agreementPdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
-  const stranger = await browser.newContext();
   expect((await stranger.request.get((await docLinks.last().getAttribute("href"))!, { maxRedirects: 0 })).status()).not.toBe(200);
-  await stranger.close();
   await expect(inv2.getByText(/Use the payment reference/)).toBeVisible();
   await shot(inv2, "28-investor-deposit-instructions");
 
@@ -707,6 +793,130 @@ test("founder-investor onboarding, pitch, listing and a funded deal", async ({ b
   await shot(inv2, "31-investor-milestones");
   await page.goto(dealRoom);
   await expect(page.getByText("Funded: in execution")).toBeVisible();
+
+  // ── Phase 6b: execution, monthly reports and marketing ──
+  // Pretend the round was funded 40 days ago, so last month's report is overdue.
+  travel("deal", pitchId, -40 * 24 * 60);
+  await admin.goto(adminDeal);
+  await admin.getByRole("link", { name: "Execution & reports →" }).click();
+  await expect(admin).toHaveURL(/\/admin\/execution\/\w+/);
+  const executionUrl = admin.url();
+  const dealId = executionUrl.split("/").pop()!;
+  await expect(admin.getByText("Overdue", { exact: true }).first()).toBeVisible();
+  await admin.getByLabel(exactLabel("Execution manager")).selectOption({ label: adminName });
+  await admin.getByRole("button", { name: "Assign" }).click();
+  await expect(admin.getByText("Manager assigned. The founder has been told.")).toBeVisible();
+  await admin.getByLabel(exactLabel("Company status")).selectOption("AMBER");
+  await admin.getByLabel(/What's happening/).fill("Second van delayed by the supplier; deliveries covered by a rental van.");
+  await admin.getByRole("button", { name: "Update status" }).click();
+  await expect(admin.getByText("Needs attention", { exact: true }).first()).toBeVisible();
+  await admin.getByLabel(exactLabel("Task")).fill("Upload the van insurance certificate");
+  await admin.getByLabel("This is for the founder (they see it and update it)").check();
+  await admin.getByLabel("Due").fill(new Date(Date.now() + 7 * 24 * 3600_000).toISOString().slice(0, 10));
+  await admin.getByRole("button", { name: "Add task" }).click();
+  await expect(admin.getByText("Upload the van insurance certificate")).toBeVisible();
+  await admin.goto("/admin/execution");
+  await admin.getByRole("button", { name: "Remind founders with overdue reports" }).click();
+  await expect(admin.getByText(/Reminded \d+ founder|No reminders due/)).toBeVisible();
+
+  // The founder sees their manager and task, and submits the overdue monthly report.
+  await page.goto(dealRoom);
+  await expect(page.getByText(`Execution manager: ${adminName}`)).toBeVisible();
+  const task = page.getByRole("listitem").filter({ hasText: "Upload the van insurance certificate" });
+  await task.getByLabel(exactLabel("Status")).selectOption("IN_PROGRESS");
+  await task.getByLabel("Note to RamiZeeZ").fill("Insurer sends it on Monday.");
+  await task.getByRole("button", { name: "Save" }).click();
+  await expect(task.getByText("Founder: Insurer sends it on Monday.")).toBeVisible();
+  await page.getByLabel(/^Revenue \(PKR\)/).fill("180000");
+  await page.getByLabel(/^Costs \(PKR\)/).fill("150000");
+  await page.getByLabel(/^Cash in bank/).fill("400000");
+  await page.getByLabel(exactLabel("Customers")).fill("150");
+  await page.getByLabel("Key metric").fill("150 active subscribers (+50%)");
+  await page.getByLabel(exactLabel("Highlights")).fill("Van on the road every day; 150 homes subscribed in Gulberg and DHA.");
+  await page.getByLabel(exactLabel("Challenges")).fill("Two late deliveries during the van repair.");
+  await shot(page, "36-founder-monthly-report");
+  await page.getByRole("button", { name: "Submit report" }).click();
+  await expect(page.getByText("With RamiZeeZ", { exact: true }).first()).toBeVisible();
+
+  // Execution reviews and publishes it; the investor sees it with their indicative profit share.
+  await admin.goto(executionUrl);
+  await admin.getByLabel("RamiZeeZ commentary for investors (optional)").fill("Figures match the bank statement we reviewed.");
+  await admin.getByRole("button", { name: "Publish to investors" }).click();
+  await expect(admin.getByText("Published", { exact: true }).first()).toBeVisible();
+  await shot(admin, "37-admin-execution");
+
+  // Marketing runs a campaign for the business and records its results.
+  await admin.goto(`/admin/marketing?deal=${dealId}`);
+  await admin.getByLabel(exactLabel("Campaign")).fill("Gulberg launch");
+  await admin.getByLabel(exactLabel("Channel")).selectOption("Instagram");
+  await admin.getByLabel(exactLabel("Objective")).fill("300 new subscribers in Gulberg and DHA");
+  await admin.getByLabel(/^Budget/).fill("150000");
+  await admin.getByLabel(exactLabel("Starts")).fill(new Date().toISOString().slice(0, 10));
+  await admin.getByRole("button", { name: "Add campaign" }).click();
+  const campaign = admin.getByRole("listitem").filter({ hasText: "Gulberg launch" });
+  await campaign.getByLabel(exactLabel("Status")).selectOption("LIVE");
+  await campaign.getByLabel(exactLabel("Reach")).fill("20000");
+  await campaign.getByLabel(exactLabel("Leads")).fill("400");
+  await campaign.getByLabel(exactLabel("Customers won")).fill("100");
+  await campaign.getByRole("button", { name: "Save results" }).click();
+  await expect(campaign).toContainText("100 customers (25%)");
+  await shot(admin, "38-admin-marketing");
+
+  await inv2.goto(offerUrl);
+  await expect(inv2.getByText("Needs attention", { exact: true })).toBeVisible();
+  await expect(inv2.getByText("Figures match the bank statement we reviewed.")).toBeVisible();
+  // Profit PKR 30,000 × 40% investors' share × the whole round.
+  await expect(inv2.getByText("PKR 12,000", { exact: true })).toBeVisible();
+  await expect(inv2.getByText("Gulberg launch")).toBeVisible();
+  await expect(inv2.getByText(/budget PKR 150,000/)).toHaveCount(0);
+  await shot(inv2, "39-investor-monthly-report");
+
+  // Scheduled jobs refuse unauthenticated calls.
+  expect([401, 503]).toContain((await stranger.request.post("/api/jobs/report-reminders")).status());
+
+  // ── Phase 6c: Urdu and the installable app ──
+  await stranger.goto("/");
+  await stranger.getByRole("button", { name: /View in Urdu/ }).click();
+  await expect(stranger.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(stranger.locator("html")).toHaveAttribute("lang", "ur");
+  await expect(stranger.getByRole("heading", { level: 1 })).toContainText("تصدیق شدہ سرمائے سے");
+  await shot(stranger, "40-landing-urdu");
+  await stranger.goto("/login");
+  await expect(stranger.getByLabel("ای میل")).toBeVisible();
+  await stranger.getByLabel("ای میل").fill("nobody@example.com");
+  await stranger.getByLabel("پاس ورڈ").fill("wrong-password-123");
+  await stranger.getByRole("button", { name: "جاری رکھیں" }).click();
+  await expect(stranger.getByText("ای میل یا پاس ورڈ درست نہیں")).toBeVisible();
+  await shot(stranger, "41-login-urdu");
+  await stranger.getByRole("button", { name: "View in English" }).click();
+  await expect(stranger.locator("html")).toHaveAttribute("dir", "ltr");
+
+  const manifest = await stranger.request.get("/manifest.webmanifest");
+  expect(manifest.ok()).toBe(true);
+  const m = await manifest.json();
+  expect(m.display).toBe("standalone");
+  expect(m.icons.some((i: { purpose: string; sizes: string }) => i.purpose === "maskable" && i.sizes === "512x512")).toBe(true);
+  const sw = await stranger.request.get("/sw.js");
+  expect(sw.headers()["cache-control"]).toContain("no-store");
+  expect(await sw.text()).toContain("never caches pages");
+
+  // Phone-sized screens: no sideways scrolling on the key pages.
+  const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, storageState: await inv2.context().storageState() })).newPage();
+  for (const path of ["/", "/dashboard", "/sessions", sessionUrl, offerUrl, opportunityUrl]) {
+    await phone.goto(path);
+    const { overflow, culprits } = await phone.evaluate(() => {
+      const w = document.documentElement.clientWidth;
+      const culprits = [...document.querySelectorAll("body *")]
+        .filter((el) => el.getBoundingClientRect().right > w + 1 && !el.closest("[class*='overflow-x-auto']") && !el.classList.contains("orb"))
+        .slice(0, 5)
+        .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 80)}`);
+      return { overflow: document.documentElement.scrollWidth - w, culprits };
+    });
+    expect(overflow, `horizontal overflow on ${path}: ${culprits.join(" | ")}`).toBeLessThanOrEqual(1);
+  }
+  await phone.goto(offerUrl);
+  await shot(phone, "42-phone-investment");
+  await phone.context().close();
 
   // ── Returning sign-in requires the authenticator code ──
   await page.getByRole("button", { name: "Sign out" }).click();

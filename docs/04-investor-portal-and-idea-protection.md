@@ -32,7 +32,7 @@ An investor never sees the full idea at once. Each level requires more commitmen
 | **L1: Blind teaser** | Sector, city, stage, amount asked, minimum ticket, deal type, a short **non-revealing** summary, key metrics (revenue band, growth band), RamiZeeZ score. **No business name, founder name or "secret sauce".** | Investor at Tier 3 |
 | **L2: Summary** | Problem, general solution, market, team background (anonymised), high-level financials | Investor e-signs a **deal-specific NDA** + non-circumvention agreement |
 | **L3: Full data room** | The full proposal, costing, roadmap, financials, documents, founder identity | Tier 4 investor, **founder or RamiZeeZ approves** the request, and the investor shows serious intent (for example a written expression of interest or a refundable commitment deposit) |
-| **L4: Live Tank** | A live pitch session and Q&A with the founder, moderated by RamiZeeZ | Invited by RamiZeeZ |
+| **L4: Live Tank** | A live pitch session and Q&A with the founder, moderated by RamiZeeZ. Attendees get the full data room afterwards if the founder allows it (built: `/sessions`) | Tier 4, matching budget, session NDA, seat approved by RamiZeeZ |
 
 Founders can mark specific fields as **"L3 only"** or **"reveal in live session only"**. Examples: a recipe, a supplier, a proprietary process.
 
