@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useState, type ReactNode } from "react";
 import type { FormState } from "@/lib/form-state";
 import { initialFormState } from "@/lib/form-state";
 import { Alert } from "./ui/alert";
@@ -26,18 +26,30 @@ export function RepeaterForm({
   initial,
   itemLabel,
   minItems = 0,
+  maxItems = 20,
   addLabel = "Add another",
+  fixed = false,
+  columns = 2,
+  rowLabel,
+  summary,
 }: {
   action: (state: FormState, fd: FormData) => Promise<FormState>;
   fields: RepeaterField[];
   initial: Row[];
   itemLabel: string;
   minItems?: number;
+  maxItems?: number;
   addLabel?: string;
+  /** A fixed set of rows (no add/remove), e.g. five projection years. */
+  fixed?: boolean;
+  columns?: 2 | 3 | 4;
+  rowLabel?: (row: Row, index: number) => string;
+  /** Live summary under the rows, e.g. running totals. */
+  summary?: (rows: Row[]) => ReactNode;
 }) {
   const empty = () => Object.fromEntries(fields.map((f) => [f.name, ""])) as Row;
   const [rows, setRows] = useState<Row[]>(() => {
-    const start = initial.length ? initial : [];
+    const start = [...initial];
     while (start.length < Math.max(minItems, 1)) start.push(empty());
     return start;
   });
@@ -52,18 +64,15 @@ export function RepeaterForm({
       {state.errors?._form && <Alert tone="error">{state.errors._form}</Alert>}
       <input type="hidden" name="items" value={JSON.stringify(rows)} />
       {rows.map((row, i) => (
-        <fieldset key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <legend className="text-sm font-medium text-white">
-              {itemLabel} {i + 1}
-            </legend>
-            {rows.length > minItems && (
-              <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setRows((r) => r.filter((_, j) => j !== i))}>
-                Remove
-              </Button>
-            )}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <fieldset key={i} className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          {/* The legend must be the fieldset's first child to name the row for assistive tech. */}
+          <legend className="float-left mb-4 w-full pr-20 text-sm font-medium text-white">{rowLabel ? rowLabel(row, i) : `${itemLabel} ${i + 1}`}</legend>
+          {!fixed && rows.length > minItems && (
+            <Button type="button" variant="ghost" className="absolute right-3 top-3 px-2 py-1 text-xs" onClick={() => setRows((r) => r.filter((_, j) => j !== i))}>
+              Remove
+            </Button>
+          )}
+          <div className={cn("clear-both grid gap-4", { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[columns])}>
             {fields.map((f) => {
               const id = `${baseId}-${i}-${f.name}`;
               const error = state.errors?.[`items.${i}.${f.name}`];
@@ -75,7 +84,7 @@ export function RepeaterForm({
                 placeholder: f.placeholder,
               };
               return (
-                <div key={f.name} className={cn("space-y-1.5", (f.wide || f.type === "textarea") && "sm:col-span-2")}>
+                <div key={f.name} className={cn("space-y-1.5", (f.wide || f.type === "textarea") && "sm:col-span-full")}>
                   <label htmlFor={id} className="block text-sm font-medium text-slate-200">
                     {f.label}
                     {f.required && <span aria-hidden className="ml-0.5 text-brand-300">*</span>}
@@ -101,10 +110,15 @@ export function RepeaterForm({
           </div>
         </fieldset>
       ))}
+      {summary?.(rows)}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="secondary" onClick={() => setRows((r) => [...r, empty()])} disabled={rows.length >= 20}>
-          + {addLabel}
-        </Button>
+        {fixed ? (
+          <span />
+        ) : (
+          <Button type="button" variant="secondary" onClick={() => setRows((r) => [...r, empty()])} disabled={rows.length >= maxItems}>
+            + {addLabel}
+          </Button>
+        )}
         <SubmitButton pendingText="Saving…">Save</SubmitButton>
       </div>
     </form>

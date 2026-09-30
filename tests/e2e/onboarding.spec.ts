@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { base32Decode } from "../../src/lib/auth/totp";
 import { createHmac } from "node:crypto";
 
@@ -45,7 +45,7 @@ const investor = { email: `investor.${stamp}@example.com`, password: "Blue-Harbo
 const ADMIN = { email: process.env.E2E_ADMIN_EMAIL!, password: process.env.E2E_ADMIN_PASSWORD! };
 
 /** Answers a yes/no question, found by its group (legend) name. */
-const answer = (page: Page, question: string, value: "yes" | "no") =>
+const answer = (page: Page | Locator, question: string, value: "yes" | "no") =>
   page.getByRole("group", { name: new RegExp(question) }).getByText(value, { exact: true }).click();
 
 async function readOtp(page: Page, channel: "EMAIL" | "PHONE") {
@@ -98,7 +98,7 @@ async function decide(page: Page, caseName: string, decision: string, extra?: (p
   await expect(page.getByText(new RegExp(`${decision.toLowerCase().replace("_", " ")} by`))).toBeVisible();
 }
 
-test("investor onboarding through all verification tiers", async ({ browser }) => {
+test("founder-investor onboarding, pitch submission and listing", async ({ browser }) => {
   const userCtx = await browser.newContext();
   const adminCtx = await browser.newContext();
   const committeeCtx = await browser.newContext();
@@ -110,6 +110,7 @@ test("investor onboarding through all verification tiers", async ({ browser }) =
   await page.goto("/");
   await shot(page, "00-landing");
   await page.getByRole("link", { name: "I want to invest" }).click();
+  await page.getByLabel("Founder: I want to pitch").check();
   await page.getByLabel("First name").fill("Ahmed");
   await page.getByLabel("Last name").fill(lastName);
   await page.getByLabel("Email").fill(investor.email);
@@ -261,37 +262,51 @@ test("investor onboarding through all verification tiers", async ({ browser }) =
   await page.goto("/dashboard");
   await expect(page.getByText("Tier 2 · Profile complete")).toBeVisible();
   await page.goto("/onboarding/role");
-  await page.getByLabel("I am investing as").selectOption("HIGH_NET_WORTH");
-  await page.getByLabel("Currency").selectOption("USD");
-  await page.getByLabel("Total budget for the platform").fill("250000");
-  await page.getByLabel("Minimum per deal").fill("10000");
-  await page.getByLabel("Maximum per deal").fill("75000");
-  await page.getByLabel("Salary / employment income").check();
-  await page.getByLabel("Overseas earnings / remittance").check();
-  await page.getByLabel("How did you build your overall wealth?").fill("Fourteen years of salary savings in Dubai plus a property sale in Lahore in 2022.");
-  await page.getByLabel("Annual income").selectOption("USD 150k–500k");
-  await page.getByRole("combobox", { name: "Net worth", exact: true }).selectOption("USD 500k–2M");
-  await page.locator("#proofOfFunds").setInputFiles({ name: "bank-statement.pdf", mimeType: "application/pdf", buffer: PDF });
-  await page.getByLabel("Your investment experience").fill("Angel investor in two Karachi startups since 2019.");
-  await page.getByLabel("Food & beverage").check();
-  await page.getByLabel("Early revenue").check();
-  await page.getByLabel("Musharakah").check();
-  await page.getByLabel("Equity", { exact: true }).check();
-  await page.getByLabel("Pakistan", { exact: true }).check();
-  await answer(page, "Shariah-compliant", "no");
-  await answer(page, "losing all the money", "yes");
-  await answer(page, "locked in", "yes");
-  await page.getByLabel(/How long can you leave money/).selectOption("GT5");
-  await page.getByLabel(/What share of your total net worth/).selectOption("10TO25");
-  await page.getByLabel(/lost half its value/).selectOption("HOLD");
+  const card = (title: string) => page.locator("section").filter({ has: page.getByRole("heading", { name: title }) });
+  const inv = card("Investor profile");
+  await inv.getByLabel("I am investing as").selectOption("HIGH_NET_WORTH");
+  await inv.getByLabel("Currency").selectOption("USD");
+  await inv.getByLabel("Total budget for the platform").fill("250000");
+  await inv.getByLabel("Minimum per deal").fill("10000");
+  await inv.getByLabel("Maximum per deal").fill("75000");
+  await inv.getByLabel("Salary / employment income").check();
+  await inv.getByLabel("Overseas earnings / remittance").check();
+  await inv.getByLabel("How did you build your overall wealth?").fill("Fourteen years of salary savings in Dubai plus a property sale in Lahore in 2022.");
+  await inv.getByLabel("Annual income").selectOption("USD 150k–500k");
+  await inv.getByRole("combobox", { name: "Net worth", exact: true }).selectOption("USD 500k–2M");
+  await inv.locator("#proofOfFunds").setInputFiles({ name: "bank-statement.pdf", mimeType: "application/pdf", buffer: PDF });
+  await inv.getByLabel("Your investment experience").fill("Angel investor in two Karachi startups since 2019.");
+  await inv.getByLabel("Food & beverage").check();
+  await inv.getByLabel("Early revenue").check();
+  await inv.getByLabel("Musharakah").check();
+  await inv.getByLabel("Equity", { exact: true }).check();
+  await inv.getByLabel("Pakistan", { exact: true }).check();
+  await answer(inv, "Shariah-compliant", "no");
+  await answer(inv, "losing all the money", "yes");
+  await answer(inv, "locked in", "yes");
+  await inv.getByLabel(/How long can you leave money/).selectOption("GT5");
+  await inv.getByLabel(/What share of your total net worth/).selectOption("10TO25");
+  await inv.getByLabel(/lost half its value/).selectOption("HOLD");
   // USD 100 is below the PKR 100,000 platform minimum.
-  await page.getByLabel("Minimum per deal").fill("100");
-  await page.getByRole("button", { name: "Save investor profile" }).click();
-  await expect(page.getByText(/The minimum investment per deal is PKR 100,000 \(≈ USD \d+\)/)).toBeVisible();
-  await page.getByLabel("Minimum per deal").fill("10000");
-  await page.locator("#proofOfFunds").setInputFiles({ name: "bank-statement.pdf", mimeType: "application/pdf", buffer: PDF });
-  await page.getByRole("button", { name: "Save investor profile" }).click();
-  await expect(page.getByText("Investor profile saved.")).toBeVisible();
+  await inv.getByLabel("Minimum per deal").fill("100");
+  await inv.getByRole("button", { name: "Save investor profile" }).click();
+  await expect(inv.getByText(/The minimum investment per deal is PKR 100,000 \(≈ USD \d+\)/)).toBeVisible();
+  await inv.getByLabel("Minimum per deal").fill("10000");
+  await inv.locator("#proofOfFunds").setInputFiles({ name: "bank-statement.pdf", mimeType: "application/pdf", buffer: PDF });
+  await inv.getByRole("button", { name: "Save investor profile" }).click();
+  await expect(inv.getByText("Investor profile saved.")).toBeVisible();
+
+  // Founder side of the same account: business details and acceptance of the RamiZeeZ terms.
+  const fdr = card("Founder & business details");
+  await fdr.getByLabel("Stage").selectOption("IDEA");
+  await fdr.getByLabel("Sector").selectOption("Food & beverage");
+  await fdr.getByLabel("Country").selectOption("PK");
+  await fdr.getByLabel("City").fill("Lahore");
+  await fdr.getByLabel("Musharakah").check();
+  await fdr.getByLabel("Currency").selectOption("PKR");
+  await fdr.getByLabel(/I accept that RamiZeeZ receives 10%/).check();
+  await fdr.getByRole("button", { name: "Save founder profile" }).click();
+  await expect(fdr.getByText("Founder profile saved.")).toBeVisible();
   await shot(page, "14-role-investor");
   await page.getByRole("button", { name: "Submit for role verification" }).click();
   await expect(page.getByText("Our team is reviewing your details")).toBeVisible();
@@ -347,6 +362,155 @@ test("investor onboarding through all verification tiers", async ({ browser }) =
   await page.goto("/dashboard");
   await expect(page.getByText("Tier 4 · RamiZeeZ Verified")).toBeVisible();
   await shot(page, "17-dashboard-verified");
+
+  // ── Phase 3: the founder builds and submits a Musharakah pitch ──
+  await page.goto("/pitches");
+  await page.getByLabel("Working title").fill("Traceable dairy subscriptions");
+  await page.getByRole("button", { name: "Create pitch" }).click();
+  await expect(page.getByRole("heading", { name: "Traceable dairy subscriptions" })).toBeVisible();
+  const pitchUrl = page.url().split("?")[0];
+  const section = async (key: string) => page.goto(`${pitchUrl}?s=${key}`);
+  const save = async (name = "Save") => {
+    const button = page.getByRole("button", { name, exact: true });
+    await button.click();
+    await expect(button.locator("xpath=ancestor::form").getByText("Saved.")).toBeVisible();
+  };
+  const exactLabel = (text: string) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\*?$`);
+  const para = (s: string, n = 170) => (s + " ").repeat(Math.ceil(n / (s.length + 1))).trim();
+
+  await page.getByLabel("One-line summary").fill("Farm-fresh milk delivered daily to Lahore homes");
+  await page.getByLabel("The problem").fill(para("Families in Lahore cannot trust the purity of loose milk."));
+  await page.getByLabel("Your solution").fill(para("Traceable milk from partner farms, chilled and delivered by subscription."));
+  await page.getByLabel("Why now?").fill("Food safety awareness and digital payments have both grown fast.");
+  await save();
+
+  await section("team");
+  await page.getByLabel("Your experience and knowledge of this business").fill(para("Ten years running my family's dairy farm and a milk distribution route of 400 homes."));
+  await save("Save experience");
+
+  await section("market");
+  await page.getByLabel("Target customers").fill(para("Middle-income families in Lahore with children.", 60));
+  await page.getByLabel(/Market size/).fill(para("Packaged milk in Lahore is a PKR 50bn market (PDDB 2025).", 60));
+  await page.getByLabel("Competitors").fill("Nestlé, Haleeb, local milkmen");
+  await page.getByLabel("What makes you different").fill(para("Farm-level traceability and a daily cold chain.", 60));
+  await save();
+
+  await section("model");
+  await page.getByLabel("How the business makes money").fill(para("Monthly milk subscriptions paid in advance.", 60));
+  await page.getByLabel("Pricing").fill("PKR 250 per litre");
+  await page.getByLabel("Unit economics").fill(para("Cost PKR 170 per litre, margin PKR 80, acquisition cost PKR 400 per home.", 60));
+  await page.getByLabel("Sales & marketing channels").fill("Instagram, school partnerships and referrals");
+  await save();
+
+  await section("ask");
+  await page.getByLabel("Currency").selectOption("PKR");
+  await page.getByLabel("Amount to raise").fill("1000000");
+  await page.getByLabel("Minimum per investor").fill("100000");
+  await expect(page.getByText("PKR 900,000")).toBeVisible();
+  await page.getByLabel("Deal structure").selectOption("MUSHARAKAH");
+  await page.getByLabel("Investors' share of profit (%)").fill("40");
+  await page.getByLabel("Your capital in the partnership").fill("250000");
+  await page.getByLabel("Partnership term (months)").fill("36");
+  await page.getByLabel("Expected return for investors").fill("40% of profits, projected at 25% a year on capital.");
+  await page.getByLabel("Exit or repayment options").fill("Founder buys out investors' share at year three.");
+  await save();
+
+  const fillRows = async (rows: string[][], labels: string[], group: string, addLabel?: string) => {
+    for (const [i, row] of rows.entries()) {
+      if (i > 0 && addLabel) await page.getByRole("button", { name: `+ ${addLabel}` }).click();
+      const g = page.getByRole("group", { name: `${group} ${i + 1}` });
+      for (const [j, value] of row.entries()) {
+        const field = g.getByLabel(exactLabel(labels[j]));
+        if ((await field.evaluate((el) => el.tagName)) === "SELECT") await field.selectOption(value);
+        else await field.fill(value);
+      }
+    }
+  };
+  await section("costing");
+  await fillRows(
+    [["CAPEX", "Refrigerated van", "1", "500000"], ["MARKETING", "Launch campaign", "1", "200000"], ["CONTINGENCY", "Buffer", "1", "200000"]],
+    ["Category", "Item", "Quantity", "Unit cost"], "Cost line", "Add cost line",
+  );
+  await expect(page.getByText("✓ Matches the amount the business receives.")).toBeVisible();
+  await save();
+
+  await section("roadmap");
+  await fillRows(
+    [["1", "Van on the road", "500000", "First 100 subscribers"], ["3", "Launch campaign", "200000", "500 paying subscribers"], ["6", "Break-even", "200000", "Positive monthly cash flow"]],
+    ["Month after funding", "Milestone", "Budget released", "Measurable success metric"], "Milestone", "Add milestone",
+  );
+  await save();
+
+  await section("financials");
+  await fillRows([1, 2, 3, 4, 5].map((y) => [String(y * 1_200_000), String(y * 1_000_000)]), ["Revenue", "Costs"], "Year");
+  await save();
+  await page.getByLabel("Assumptions behind these numbers").fill(para("Subscribers grow 15% a month in year one, then 40% a year; price rises 8% a year.", 90));
+  await save("Save assumptions");
+
+  await section("risks");
+  await fillRows(
+    [["MARKET", "Price war with big brands", "Premium positioning"], ["OPERATIONAL", "Cold chain failure", "Backup generators"], ["FINANCIAL", "Late payments", "Prepaid subscriptions only"]],
+    ["Category", "Risk", "How you will handle it"], "Risk", "Add risk",
+  );
+  await save();
+  await page.getByLabel(/If the business fails/).fill(para("The van and chillers are sold and the proceeds returned to investors.", 60));
+  await save("Save plan");
+
+  await section("media");
+  await page.locator("#deck").setInputFiles({ name: "dairy-deck.pdf", mimeType: "application/pdf", buffer: PDF });
+  await save();
+
+  await section("submit");
+  await expect(page.getByText("Every section is complete.")).toBeVisible();
+  await shot(page, "18-pitch-submit");
+  for (const label of [/This idea, business and all the materials/, /All figures and statements are true/, /I accept the RamiZeeZ terms/, /non-circumvention/]) {
+    await page.getByLabel(label).check();
+  }
+  await page.getByRole("button", { name: "Submit for screening" }).click();
+  await expect(page.getByTestId("pitch-fingerprint")).toHaveText(/^[0-9a-f]{64}$/);
+  await shot(page, "19-pitch-submitted");
+
+  // ── Screening pipeline: the super admin screens, the committee member lists ──
+  const step = async (p: Page, label: string, note = "") => {
+    await p.getByLabel("Next step").selectOption({ label });
+    if (note) await p.getByLabel("Note / feedback to founder").fill(note);
+    await p.getByRole("button", { name: "Confirm" }).click();
+  };
+  await admin.goto("/admin/pitches");
+  await shot(admin, "20-admin-pipeline");
+  await admin.getByRole("link", { name: /Traceable dairy subscriptions/ }).first().click();
+  await step(admin, "Start screening");
+  await expect(admin.getByText("Moved to Screening")).toBeVisible();
+  for (const criterion of ["Team & experience", "Market opportunity", "Business model", "Financials & costing", "Execution roadmap", "Risk management"]) {
+    await admin.getByLabel(criterion).selectOption("4");
+  }
+  await admin.getByLabel("Assessment").fill("Experienced founder, credible costing and a clear route to break-even.");
+  await admin.getByRole("button", { name: "Save scorecard" }).click();
+  await expect(admin.getByText("Scorecard saved: 80/100.")).toBeVisible();
+  await step(admin, "Move to due diligence");
+  await expect(admin.getByText("Moved to Due diligence")).toBeVisible();
+  for (const item of [/identities verified/, /Registration, tax/, /Financial statements/, /Cost lines checked/, /No legal disputes/, /References and key/]) {
+    await admin.getByLabel(item).check();
+  }
+  await admin.getByRole("button", { name: "Save checklist" }).click();
+  await expect(admin.getByText("Checklist saved: 6 of 6 complete.")).toBeVisible();
+  await admin.getByLabel("Anonymous investor teaser").fill("Food & beverage · Lahore · idea stage. A traceable dairy subscription raising PKR 1M on Musharakah terms.");
+  await admin.getByRole("button", { name: "Save teaser" }).click();
+  await expect(admin.getByText("Teaser saved.")).toBeVisible();
+  await step(admin, "Send to committee");
+  await expect(admin.getByText("Moved to Investment committee")).toBeVisible();
+  // The super admin screened this pitch, so they can't approve the listing themselves.
+  await step(admin, "Approve & list");
+  await expect(admin.getByText(/A different committee member must approve the listing/)).toBeVisible();
+
+  await committee.goto("/admin/pitches");
+  await committee.getByRole("link", { name: /Traceable dairy subscriptions/ }).first().click();
+  await shot(committee, "21-committee-pitch-review");
+  await step(committee, "Approve & list", "Approved: strong founder-market fit.");
+  await expect(committee.getByText(/^Listed\. Investors will see the teaser/)).toBeVisible();
+
+  await page.goto("/pitches");
+  await expect(page.getByText("Listed", { exact: true })).toBeVisible();
 
   // ── Returning sign-in requires the authenticator code ──
   await page.getByRole("button", { name: "Sign out" }).click();

@@ -87,6 +87,10 @@ model User {
   decidedCases      VerificationCase[]    @relation("CaseDecider")
   caseNotes         CaseNote[]
   auditLogs         AuditLog[]
+  pitches           Pitch[]               @relation("PitchFounder")
+  assignedPitches   Pitch[]               @relation("PitchAssignee")
+  pitchReviews      PitchReview[]
+  pitchEvents       PitchEvent[]
 }
 
 enum SessionStage {
@@ -163,6 +167,9 @@ enum FileKind {
   TAX_REGISTRATION
   BANK_STATEMENT
   FINANCIAL_STATEMENT
+  PITCH_DECK
+  PITCH_IMAGE
+  PITCH_DOCUMENT
   OTHER
 }
 
@@ -523,6 +530,203 @@ model CaseNote {
   createdAt DateTime         @default(now())
 
   @@index([caseId])
+}
+
+// ─── Pitches (Phase 3) ────────────────────────────────────────────────────────
+
+enum PitchType {
+  IDEA
+  EXISTING
+}
+
+enum PitchStatus {
+  DRAFT
+  SUBMITTED // waiting for an analyst
+  SCREENING
+  DUE_DILIGENCE
+  COMMITTEE
+  LISTED
+  RETURNED // sent back to the founder for changes
+  REJECTED
+  WITHDRAWN
+}
+
+model Pitch {
+  id            String      @id @default(cuid())
+  founderId     String
+  founder       User        @relation("PitchFounder", fields: [founderId], references: [id], onDelete: Cascade)
+  status        PitchStatus @default(DRAFT)
+  type          PitchType   @default(IDEA)
+  savedSections String[]
+
+  // Overview
+  title    String
+  sector   String?
+  country  String?
+  city     String?
+  oneLiner String?
+  problem  String?
+  solution String?
+  whyNow   String?
+
+  // Team
+  teamExperience String?
+  teamMembers    Json    @default("[]") // [{ name, role, commitment, equityPercent }]
+  advisors       String?
+  plannedHires   String?
+
+  // Market
+  targetCustomers String?
+  marketSize      String?
+  competitors     String?
+  differentiation String?
+
+  // Business model
+  revenueModel  String?
+  pricing       String?
+  unitEconomics String?
+  channels      String?
+  partners      String?
+
+  // Current status (existing businesses)
+  startedYear       Int?
+  employees         Int?
+  revenueLast12     Decimal? @db.Decimal(18, 2)
+  expensesLast12    Decimal? @db.Decimal(18, 2)
+  monthlyRevenue    Decimal? @db.Decimal(18, 2)
+  customers         Int?
+  tractionNotes     String?
+  liabilities       String?
+  existingInvestors String?
+
+  // The ask
+  currency            String    @default("PKR")
+  amount              Decimal?  @db.Decimal(18, 2)
+  minTicket           Decimal?  @db.Decimal(18, 2)
+  multipleInvestors   Boolean   @default(true)
+  dealType            DealType?
+  equityPercent       Decimal?  @db.Decimal(5, 2) // EQUITY: stake offered to investors
+  profitSharePercent  Decimal?  @db.Decimal(5, 2) // MUSHARAKAH / MUDARABAH: investors' share of profit
+  founderCapital      Decimal?  @db.Decimal(18, 2) // MUSHARAKAH: founder's own capital in the partnership
+  revenueSharePercent Decimal?  @db.Decimal(5, 2) // REVENUE_SHARE: share of revenue paid to investors
+  returnCapMultiple   Decimal?  @db.Decimal(4, 2) // REVENUE_SHARE: payments stop at amount × multiple
+  termMonths          Int?
+  valuation           Decimal?  @db.Decimal(18, 2) // pre-money
+  valuationMethod     String?
+  nonFinancialAsks    String?
+  expectedReturn      String?
+  exitOptions         String?
+
+  // Financials & risks
+  projections           Json    @default("[]") // [{ year, revenue, costs, cashFlow }]
+  projectionAssumptions String?
+  risks                 Json    @default("[]") // [{ category, risk, mitigation }]
+  failurePlan           String?
+
+  // Media
+  videoUrl        String?
+  deckFileId      String?
+  imageFileIds    String[]
+  documentFileIds String[]
+
+  // Review
+  teaser         String? // anonymous investor-facing summary, written by RamiZeeZ at listing
+  screeningScore Int? // 0–100
+  assignedToId   String?
+  assignedTo     User?     @relation("PitchAssignee", fields: [assignedToId], references: [id])
+  submittedAt    DateTime?
+  listedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  costItems   PitchCostItem[]
+  milestones  PitchMilestone[]
+  submissions PitchSubmission[]
+  reviews     PitchReview[]
+  events      PitchEvent[]
+
+  @@index([founderId])
+  @@index([status])
+}
+
+model PitchCostItem {
+  id       String  @id @default(cuid())
+  pitchId  String
+  pitch    Pitch   @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  category String // CAPEX | OPEX | MARKETING | SALARIES | INVENTORY | LEGAL | TECHNOLOGY | CONTINGENCY | OTHER
+  item     String
+  quantity Decimal @db.Decimal(14, 2)
+  unitCost Decimal @db.Decimal(18, 2)
+  timing   String?
+  position Int     @default(0)
+
+  @@index([pitchId])
+}
+
+/// Execution milestones. Once funded, these become the escrow release schedule.
+model PitchMilestone {
+  id            String  @id @default(cuid())
+  pitchId       String
+  pitch         Pitch   @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  month         Int // months after funding
+  title         String
+  successMetric String
+  budget        Decimal @db.Decimal(18, 2)
+  owner         String?
+  position      Int     @default(0)
+
+  @@index([pitchId])
+}
+
+/// Immutable snapshot of each submission, with a SHA-256 fingerprint as proof of authorship.
+model PitchSubmission {
+  id           String   @id @default(cuid())
+  pitchId      String
+  pitch        Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  version      Int
+  fingerprint  String
+  snapshot     Json
+  termsVersion String
+  submittedAt  DateTime @default(now())
+  submittedIp  String?
+
+  @@unique([pitchId, version])
+}
+
+enum PitchReviewStage {
+  SCREENING
+  DUE_DILIGENCE
+  COMMITTEE
+}
+
+model PitchReview {
+  id         String           @id @default(cuid())
+  pitchId    String
+  pitch      Pitch            @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  stage      PitchReviewStage
+  reviewerId String
+  reviewer   User             @relation(fields: [reviewerId], references: [id])
+  scores     Json? // SCREENING: { team, market, model, financials, roadmap, risk } each 1–5
+  checklist  Json? // DUE_DILIGENCE: { key: boolean }
+  notes      String?
+  createdAt  DateTime         @default(now())
+
+  @@index([pitchId, stage])
+}
+
+/// Status history, including the feedback shown to the founder.
+model PitchEvent {
+  id         String       @id @default(cuid())
+  pitchId    String
+  pitch      Pitch        @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  fromStatus PitchStatus?
+  toStatus   PitchStatus
+  actorId    String?
+  actor      User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  @@index([pitchId])
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────

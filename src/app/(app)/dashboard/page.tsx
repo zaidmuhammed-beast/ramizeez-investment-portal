@@ -81,8 +81,14 @@ export default async function DashboardPage() {
 
       <div className="mt-8 grid gap-5 md:grid-cols-2">
         {user.roles.includes("FOUNDER") && (
-          <Card title="Your pitches" description="Opens at Tier 2. Pitch submission is being built next.">
-            <Badge tone="neutral">Coming soon</Badge>
+          <Card title="Your pitches" description="Draft from Tier 1, submit from Tier 2. Listed once you're RamiZeeZ Verified (Tier 4).">
+            {tier >= 1 ? (
+              <LinkButton href="/pitches" variant="secondary">
+                Open pitch builder
+              </LinkButton>
+            ) : (
+              <Badge tone="neutral">Opens at Tier 1</Badge>
+            )}
           </Card>
         )}
         {user.roles.includes("INVESTOR") && (

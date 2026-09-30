@@ -2,7 +2,7 @@
 
 A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (people with a startup idea or an existing business that needs capital) with **verified investors** in Pakistan, overseas Pakistanis and foreign investors. RamiZeeZ sits in the middle as the trusted intermediary. It verifies everyone, screens every pitch, protects founders' ideas, and manages agreements, execution and marketing once a deal closes.
 
-> **Status:** Phases 1–2 are built: secure accounts, the team portal and the full tiered verification (KYC) system. Pitch submission (Phase 3) is next.
+> **Status:** Phases 1–3 are built: secure accounts, the team portal, the full tiered verification (KYC) system, and the pitch builder with its screening pipeline. The investor portal and idea protection (Phase 4) are next.
 
 ## Design documents
 
@@ -26,6 +26,18 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
   - Investors give their type (individual, high-net-worth, company, fund, family office), budget and ticket range, source of funds and wealth with **proof of funds**, sector, stage and region preferences, and accepted deal types (**Equity, Musharakah, Mudarabah, Revenue share**, or Shariah-only), then answer a risk and suitability questionnaire.
   - Founders give their stage, business and registration details, documents, and preferred deal types.
 - **Tier 4: final approval.** A request for a video interview, re-screening against the watchlist, and a senior decision.
+
+**Pitch builder (`/pitches`, founders)**
+- Eleven guided sections: overview, team and experience, market, business model, current status (operating businesses only), the proposal, costing, roadmap, 5-year projections, risks, and deck/media.
+- Deal terms with live maths for **Equity** (ownership preview including RamiZeeZ's 25%), **Musharakah**, **Mudarabah** and **Revenue share**.
+- The **costing and milestone budgets must add up to the raise minus the 10% fee**, with a running total against that target. Milestones become the future escrow release schedule.
+- A completeness checklist links to each open item. Submission requires Tier 2 and four declarations. It locks the pitch and stores a snapshot with a **SHA-256 fingerprint** as proof of authorship.
+
+**Pitch pipeline (`/admin/pitches`, team)**
+- A board showing Submitted → Screening → Due diligence → Committee → Listed.
+- A screening scorecard (6 criteria), a 6-item due-diligence checklist, and an anonymous investor teaser.
+- Return or reject with feedback the founder sees. A returned pitch can be edited and resubmitted as a new version.
+- Listing requires a Tier 4 founder, a teaser, and a committee approver who didn't screen the pitch or run its due diligence (four-eyes rule).
 
 **Team portal (`/admin`)**
 - A verification queue (oldest first) with each automated check's result, the ID images, the liveness frames next to their prompts, address proof, AML hits, internal notes, assignment and case history.
@@ -106,9 +118,9 @@ The app checks this configuration at startup and refuses to run if a chosen prov
 
 ```bash
 npm run typecheck && npm run lint
-npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, encryption
+npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, encryption
 npm run build && npm start  # then, in another terminal:
-npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 approvals by two team members
+npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, submitted, screened and listed
 ```
 
 The E2E test seeds its own fresh super admin on every run. If you're using a pre-installed Chromium, set `E2E_CHROMIUM_PATH`. Set `E2E_SCREENSHOTS=<dir>` to save screenshots.
@@ -118,11 +130,12 @@ The E2E test seeds its own fresh super admin on every run. If you're using a pre
 ```
 prisma/schema.prisma        data model (accounts, sessions, KYC, profiles, cases, audit)
 src/app/(auth)/             sign-up, login + 2FA, contact verification, 2FA setup
-src/app/(app)/              applicant dashboard and onboarding tiers 1–4
+src/app/(app)/              applicant dashboard, onboarding tiers 1–4, pitch builder
 src/app/admin/              team portal
 src/app/api/files/[id]      access-controlled, audited document delivery
 src/lib/auth/               sessions, passwords, TOTP, one-time codes, recovery codes, role permissions
 src/lib/kyc/                KYC provider interface, in-house checks, MRZ, CNIC, AML screening
+src/lib/pitch/              pitch completeness rules, deal maths, screening workflow, fingerprints
 src/components/ui/          glassmorphism design system (cards, forms, badges, buttons)
 tests/unit, tests/e2e       Vitest and Playwright
 ```

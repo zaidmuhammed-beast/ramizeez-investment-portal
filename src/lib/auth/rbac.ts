@@ -14,21 +14,25 @@ export type Permission =
   | "team.manage"
   | "watchlist.manage"
   | "audit.view"
-  | "outbox.view";
+  | "outbox.view"
+  | "pitches.view"
+  | "pitches.screen"
+  | "pitches.approve";
 
 const ALL: Permission[] = [
   "cases.view", "cases.decide.identity", "cases.decide.role", "cases.decide.final", "kyc.files.view",
   "users.view", "users.suspend", "team.manage", "watchlist.manage", "audit.view", "outbox.view",
+  "pitches.view", "pitches.screen", "pitches.approve",
 ];
 
 // Least privilege: each team role only gets what its job needs.
 const MATRIX: Record<TeamRole, Permission[]> = {
   SUPER_ADMIN: ALL,
   VERIFICATION_OFFICER: ["cases.view", "cases.decide.identity", "cases.decide.role", "kyc.files.view", "users.view", "watchlist.manage", "outbox.view"],
-  INVESTMENT_COMMITTEE: ["cases.view", "cases.decide.final", "users.view"],
-  DEAL_ANALYST: ["users.view"],
-  LEGAL: ["users.view", "audit.view"],
-  FINANCE: ["users.view"],
+  INVESTMENT_COMMITTEE: ["cases.view", "cases.decide.final", "users.view", "pitches.view", "pitches.approve"],
+  DEAL_ANALYST: ["users.view", "pitches.view", "pitches.screen"],
+  LEGAL: ["users.view", "audit.view", "pitches.view"],
+  FINANCE: ["users.view", "pitches.view"],
   EXECUTION_MANAGER: ["users.view"],
   MARKETING: [],
   SUPPORT: ["users.view", "outbox.view"],

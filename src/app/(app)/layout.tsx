@@ -20,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               { href: "/onboarding/profile", label: "Profile" },
               { href: "/onboarding/role", label: "Role verification" },
               { href: "/onboarding/final", label: "Final approval" },
+              ...(user.roles.includes("FOUNDER") ? [{ href: "/pitches", label: "Pitches" }] : []),
             ]}
           />
           <div className="flex items-center gap-3">

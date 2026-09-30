@@ -64,7 +64,8 @@ export const optionalUrl = z
 export const yearSchema = z.coerce.number().int().min(1940).max(new Date().getFullYear() + 10);
 
 export const optionalYear = z
-  .union([z.literal(""), z.null(), z.undefined(), yearSchema])
+  .union([z.literal(""), z.null(), yearSchema])
+  .optional() // required for absent keys to be valid in Zod 4
   .transform((v) => (typeof v === "number" ? v : undefined));
 
 export const dateSchema = z

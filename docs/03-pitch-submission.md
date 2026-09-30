@@ -1,6 +1,12 @@
 # 3. Pitch submission (Founder portal)
 
-A pitch is a structured **proposal**, not a single upload. Founders fill in guided sections, so every pitch is complete and easy to compare. Drafts save automatically. A founder can submit only after reaching verification Tier 2 and completing every required section.
+A pitch is a structured **proposal**, not a single upload. Founders fill in guided sections, so every pitch is complete and easy to compare.
+
+> **Status: built (Phase 3).**
+> - Founders can draft from Tier 1. Each section saves as a draft.
+> - They can submit from Tier 2, once every rule below is met.
+> - A pitch is listed only once the founder is RamiZeeZ Verified (Tier 4).
+> - A founder can have up to 5 active pitches.
 
 ## 3.1 Pitch types
 
@@ -38,8 +44,12 @@ A pitch is a structured **proposal**, not a single upload. Founders fill in guid
 - **Amount required** (PKR / USD), at least **PKR 100,000**
 - **Minimum ticket** per investor (at least PKR 100,000), and whether several investors can join the round
 - A clear display of RamiZeeZ's terms: **10% of the amount raised** and a **25% share in the business**. For example, a PKR 10M raise gives the business PKR 9M, and RamiZeeZ holds 25%.
-- **Deal structure**: equity %, convertible note, revenue share, profit share, Shariah-compliant Musharakah or Mudarabah, or debt
-- The valuation, and how it was worked out
+- **Deal structure**, with rules per type:
+  - **Equity:** investors take at most 65%, since RamiZeeZ holds 25% and founders keep at least 10%. The founder gives a pre-money valuation and the method. An ownership preview is shown.
+  - **Musharakah:** the investors' profit share, the founder's own capital, and the term.
+  - **Mudarabah:** the investors' profit share and the term.
+  - **Revenue share:** up to 50% of revenue, a 1×–5× repayment cap, and a maximum term.
+- The valuation, and how it was worked out (equity)
 - What the founder wants beyond money (mentorship, network, RamiZeeZ marketing, etc.)
 - The expected return and exit options for investors
 
@@ -54,13 +64,14 @@ A line-item budget table:
 | Salaries | … | … | … | … | … |
 | Contingency | 10% buffer | | | … | |
 
-The system checks that the line items add up to the amount asked for. Quotations or invoices can be attached.
+At least 3 lines. The line items must add up to **the amount raised minus the 10% RamiZeeZ fee**, because that is what the business receives. The builder shows a running total against that target. Quotations or invoices can be attached as supporting documents.
 
 ### 7. Execution roadmap (required)
 - Milestones with target dates, owner, budget released for each, and a **measurable success metric**
   (for example: "Month 3: shop opened, 500 customers, PKR 1M monthly revenue")
+- At least 3 milestones, in date order. Their budgets must also add up to the amount after the fee.
 - These milestones become the **escrow release schedule** once the deal is funded
-- 3–5 year financial projections (revenue, costs, profit, cash flow), using a provided template
+- 5-year financial projections (revenue, costs, profit, cash flow), with written assumptions
 
 ### 8. Risks & mitigation
 - Key risks (market, operational, regulatory, team, financial) and a plan for each
@@ -73,16 +84,18 @@ The system checks that the line items add up to the amount asked for. Quotations
 ### 10. Declarations
 - The founder owns this idea or IP, or has the right to it
 - All figures are true
-- Agreement to RamiZeeZ's platform terms: the fee model, exclusivity for the listing period, and **non-circumvention**
+- Agreement to RamiZeeZ's platform terms: the 10% fee and 25% share, and **non-circumvention**
+
+**Proof of authorship:** each submission stores an immutable snapshot and a SHA-256 fingerprint of the content and every attached file. The founder is shown the fingerprint.
 
 ## 3.3 Screening pipeline (inside RamiZeeZ)
 
 | Stage | Done by | Output |
 |-------|---------|--------|
-| **Completeness check** | System + analyst | Complete, or returned with comments |
-| **Screening score** | Deal analyst | A score across team, market, model, financials, roadmap and risk |
-| **Due diligence** | Analyst + legal + finance | Verify documents, financials, legal entity, IP and references |
-| **Investment committee** | Senior team | Approve for listing / return for improvement / reject |
-| **Listing** | Admin | A blind teaser goes live to matching investors |
+| **Completeness check** | System | Enforced before submission |
+| **Screening** | Deal analyst | A scorecard (1–5 each for team, market, model, financials, roadmap and risk). This is required before due diligence. |
+| **Due diligence** | Analyst + legal + finance | A 6-item checklist (identities, documents, financials, costing, legal/IP, references). Every item must be ticked before the committee. |
+| **Investment committee** | Committee | Approve and list / return / reject. The committee can list only if the founder is Tier 4 and the anonymous teaser is written. The approver must not have screened the pitch or run its due diligence (four-eyes rule). |
+| **Listing** | Committee | A blind teaser, ready for matched investors in the Phase 4 investor portal |
 
-Founders see their pitch status and reviewers' comments at every stage. A rejected founder receives specific feedback and can resubmit after improving the pitch.
+Returning or rejecting a pitch requires written feedback, which the founder sees. A returned pitch unlocks for editing and can be resubmitted as a new version, and it is then reviewed afresh. The founder gets an email at every status change.
