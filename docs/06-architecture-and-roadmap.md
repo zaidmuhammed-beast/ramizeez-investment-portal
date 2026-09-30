@@ -53,12 +53,15 @@
 | 2 | Launch market | Pakistan, **all overseas Pakistanis and foreign investors** from launch: any country of residence, international phone numbers, CNIC / NICOP / passport / national ID, multi-currency budgets. |
 | 3 | Identity-check provider | **In-house checks for testing now** (see the README), behind a `KycProvider` interface, so **Sumsub** can be plugged in later without changing the flow. |
 | 4 | Deal types | Users choose any mix of **Equity, Musharakah, Mudarabah, Revenue share**. Investors can also ask to see only Shariah-compliant deals. |
-| 5 | RamiZeeZ revenue | A **percentage of each raise** plus **a share in the business**. |
+| 5 | RamiZeeZ revenue | **10% of each raise** (success fee) plus **a 25% share in each business**. Founders accept these terms during role verification. The terms carry a version, so changing them makes founders re-accept. Set in `src/config/platform.ts`. |
 | 6 | Tech stack | **Next.js + TypeScript + PostgreSQL** (Prisma ORM), with a clean **glassmorphic** UI. |
+| 7 | Minimum amount | **PKR 100,000** for each pitch's raise and each investment. Foreign-currency amounts are checked with indicative exchange rates in `src/config/platform.ts`; review them monthly or connect a live feed. |
+| 8 | Branding | **To be decided.** "RamiZeeZ Ventures" is a placeholder set in one place (`src/config/brand.ts`, plus the logo mark). |
+| 9 | Email & SMS providers | **To be chosen later.** Three options for each are built in, selected with environment variables: email via **Resend, SendGrid or any SMTP server**; SMS via **Twilio, Vonage, or a generic HTTP gateway** for Pakistani aggregators. Admin → Settings shows the active providers and sends test messages. |
 
 ## 6.6 Remaining open questions
 
-1. The success-fee percentage and the equity share RamiZeeZ takes, and whether they vary by deal size.
-2. The minimum raise per pitch and the minimum investor ticket.
-3. The platform's public name and branding. "RamiZeeZ Ventures" is a placeholder, set by `APP_NAME` and the logo component.
-4. Which email/SMS providers to use (for example AWS SES + Twilio, or a local SMS gateway for Pakistan).
+1. How the 25% business share applies to non-equity deals (Musharakah, Mudarabah, revenue share), for example as a 25% share of the profit or revenue. Confirm with legal and the Shariah advisor.
+2. Whether the success fee and business share will ever vary by deal size. They are fixed for now.
+3. The final name and branding.
+4. Which email and SMS providers to use.

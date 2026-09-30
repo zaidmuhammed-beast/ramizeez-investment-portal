@@ -5,8 +5,9 @@ import { initialFormState } from "@/lib/form-state";
 import { CURRENCIES } from "@/lib/countries";
 import { DEAL_TYPES, ENTITY_TYPES, GEOGRAPHIES, INCOME_BANDS, INVESTOR_TYPES, NET_WORTH_BANDS, SECTORS, SOURCES_OF_FUNDS, STAGES, opts, plainOpts } from "@/lib/taxonomy";
 import { RISK_QUESTIONS, ENTITY_INVESTOR_TYPES } from "@/lib/kyc/role-checks";
+import { MIN_AMOUNT_PKR, PLATFORM_TERMS, feeBreakdown, formatMoney, minimumIn } from "@/config/platform";
 import { SubmitButton } from "@/components/ui/button";
-import { CheckboxGroup, Form, SelectField, TextArea, TextField, YesNo, useFormState, type Option } from "@/components/ui/form";
+import { Checkbox, CheckboxGroup, Form, SelectField, TextArea, TextField, YesNo, useFormState, type Option } from "@/components/ui/form";
 import { saveFounderAction, saveInvestorAction } from "./actions";
 
 type Defaults = Record<string, string | string[]>;
@@ -70,6 +71,11 @@ export function InvestorForm({
 }) {
   const [state, action] = useActionState(saveInvestorAction, initialFormState);
   const [type, setType] = useState(s(defaults, "investorType") ?? "");
+  const [currency, setCurrency] = useState(s(defaults, "currency") ?? "PKR");
+  const minHint =
+    currency === "PKR"
+      ? `At least PKR ${MIN_AMOUNT_PKR.toLocaleString("en-US")}`
+      : `At least PKR ${MIN_AMOUNT_PKR.toLocaleString("en-US")} (≈ ${formatMoney(minimumIn(currency), currency)})`;
   const isEntity = (ENTITY_INVESTOR_TYPES as readonly string[]).includes(type);
   return (
     <Form state={state} action={action}>
@@ -77,7 +83,7 @@ export function InvestorForm({
         <Section title="Investor type & budget">
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField name="investorType" label="I am investing as" required options={opts(INVESTOR_TYPES)} defaultValue={s(defaults, "investorType")} onChange={(e) => setType(e.target.value)} />
-            <SelectField name="currency" label="Currency" required options={currencyOptions} defaultValue={s(defaults, "currency")} />
+            <SelectField name="currency" label="Currency" required options={currencyOptions} defaultValue={s(defaults, "currency")} onChange={(e) => setCurrency(e.target.value)} />
           </div>
           {isEntity && (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -87,7 +93,7 @@ export function InvestorForm({
           )}
           <div className="grid gap-4 sm:grid-cols-3">
             <TextField name="declaredBudget" label="Total budget for the platform" type="number" min={0} step="any" required defaultValue={s(defaults, "declaredBudget")} />
-            <TextField name="ticketMin" label="Minimum per deal" type="number" min={0} step="any" required defaultValue={s(defaults, "ticketMin")} />
+            <TextField name="ticketMin" label="Minimum per deal" type="number" min={0} step="any" required defaultValue={s(defaults, "ticketMin")} hint={minHint} />
             <TextField name="ticketMax" label="Maximum per deal" type="number" min={0} step="any" required defaultValue={s(defaults, "ticketMax")} />
           </div>
         </Section>
@@ -188,6 +194,14 @@ export function FounderForm({
           </Section>
         )}
         {!existing && existingFiles.length > 0 && <FileInput name="registrationDocs" label="Supporting documents" existing={existingFiles} />}
+        <Section title="RamiZeeZ terms">
+          <PlatformTerms />
+          <Checkbox
+            name="acceptPlatformTerms"
+            defaultChecked={s(defaults, "platformTermsVersion") === PLATFORM_TERMS.version}
+            label={`I accept that RamiZeeZ receives ${PLATFORM_TERMS.successFeePercent}% of every amount I raise through the platform and a ${PLATFORM_TERMS.businessSharePercent}% share in my business, in return for managing agreements, execution and marketing.`}
+          />
+        </Section>
         <Section title="Your commitment">
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
             <TextField name="personalCapital" label="Your own money already put in, or committed" type="number" min={0} step="any" defaultValue={s(defaults, "personalCapital")} />
@@ -197,5 +211,28 @@ export function FounderForm({
       </fieldset>
       {!disabled && <SubmitButton pendingText="Saving…">Save founder profile</SubmitButton>}
     </Form>
+  );
+}
+
+function PlatformTerms() {
+  const example = feeBreakdown(10_000_000);
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-2xl font-semibold text-white">{PLATFORM_TERMS.successFeePercent}%</p>
+        <p className="mt-1 text-sm text-slate-300">of each amount raised</p>
+        <p className="mt-2 text-xs text-slate-400">
+          For example, on a PKR {example.raise.toLocaleString("en-US")} raise, RamiZeeZ receives PKR {example.fee.toLocaleString("en-US")} and your business receives
+          PKR {example.netToBusiness.toLocaleString("en-US")}.
+        </p>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-2xl font-semibold text-white">{PLATFORM_TERMS.businessSharePercent}%</p>
+        <p className="mt-1 text-sm text-slate-300">share in the business</p>
+        <p className="mt-2 text-xs text-slate-400">
+          RamiZeeZ manages agreements, escrow, execution and marketing for the business. The minimum raise is PKR {MIN_AMOUNT_PKR.toLocaleString("en-US")}.
+        </p>
+      </div>
+    </div>
   );
 }

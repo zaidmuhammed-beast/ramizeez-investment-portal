@@ -128,6 +128,9 @@ export function SelectField({
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} required={props.required} className={className}>
       <select
+        // React applies a select's defaultValue only on mount, so remount when the echoed
+        // value changes — otherwise the post-submit form reset drops the user's choice.
+        key={typeof value === "string" ? value : ""}
         id={id}
         name={name}
         defaultValue={typeof value === "string" ? value : ""}

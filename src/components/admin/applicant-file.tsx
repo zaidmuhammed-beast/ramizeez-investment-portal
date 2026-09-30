@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Prisma } from "@prisma/client";
 import { countryName } from "@/lib/countries";
+import { PLATFORM_TERMS } from "@/config/platform";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -95,6 +96,17 @@ export function RoleEvidence({ user, files, canViewFiles }: { user: Applicant; f
               ["Own capital", money(fdr.currency, fdr.personalCapital)],
               ["Deal types", fdr.preferredDealTypes.join(", ").replaceAll("_", " ").toLowerCase()],
               ["Co-founders", fdr.coFounders],
+              [
+                "RamiZeeZ terms",
+                fdr.platformTermsAcceptedAt ? (
+                  <>
+                    {fdr.platformTermsVersion === PLATFORM_TERMS.version ? <Badge tone="green">Current</Badge> : <Badge tone="amber">Outdated</Badge>} v{fdr.platformTermsVersion},
+                    accepted {fmt(fdr.platformTermsAcceptedAt)}
+                  </>
+                ) : (
+                  <Badge tone="red">Not accepted</Badge>
+                ),
+              ],
             ]}
           />
           <h3 className="mb-2 mt-5 text-sm font-medium text-white">Documents</h3>

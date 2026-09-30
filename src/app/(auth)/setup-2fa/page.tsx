@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { redirect } from "next/navigation";
-import { env } from "@/lib/env";
+import { BRAND } from "@/config/brand";
 import { homeFor, requireUser } from "@/lib/auth/session";
 import { ensureTotpSecret } from "@/lib/auth/totp-store";
 import { otpauthUrl } from "@/lib/auth/totp";
@@ -15,7 +15,7 @@ export default async function SetupTwoFactorPage() {
   const user = await requireUser("2fa");
   if (user.totpEnabledAt) redirect(homeFor(user));
   const secret = await ensureTotpSecret(user.id);
-  const qr = await QRCode.toDataURL(otpauthUrl(secret, user.email, env().APP_NAME), {
+  const qr = await QRCode.toDataURL(otpauthUrl(secret, user.email, BRAND.name), {
     margin: 1,
     width: 220,
     color: { dark: "#0a0f24", light: "#ffffff" },

@@ -2,7 +2,7 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import type { OtpChannel, User } from "@prisma/client";
 import { db } from "../db";
-import { env } from "../env";
+import { BRAND } from "@/config/brand";
 import { indexOf } from "../keys";
 import { safeEqual } from "../crypto";
 import { sendMessage } from "../messaging";
@@ -12,8 +12,8 @@ const MAX_ATTEMPTS = 5;
 
 const hashCode = (userId: string, channel: OtpChannel, code: string) => indexOf(`otp:${userId}:${channel}:${code}`);
 
-/** Issues a fresh one-time code (invalidating older ones). Returns the code only when DEV_SHOW_OTP is on. */
-export async function issueOtp(user: Pick<User, "id" | "email" | "phone">, channel: OtpChannel): Promise<string | null> {
+/** Issues a fresh one-time code (invalidating older ones). Returns whether it was delivered. */
+export async function issueOtp(user: Pick<User, "id" | "email" | "phone">, channel: OtpChannel): Promise<boolean> {
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
   await db.$transaction([
     db.otpCode.updateMany({
@@ -29,10 +29,10 @@ export async function issueOtp(user: Pick<User, "id" | "email" | "phone">, chann
       },
     }),
   ]);
-  const text = `Your ${env().APP_NAME} verification code is ${code}. It expires in 10 minutes. Never share this code.`;
-  if (channel === "EMAIL") await sendMessage("EMAIL", user.email, "Your verification code", text);
-  else await sendMessage("PHONE", user.phone, null, text);
-  return env().DEV_SHOW_OTP ? code : null;
+  const text = `Your ${BRAND.name} verification code is ${code}. It expires in 10 minutes. Never share this code.`;
+  return channel === "EMAIL"
+    ? sendMessage("EMAIL", user.email, "Your verification code", text)
+    : sendMessage("PHONE", user.phone, null, text);
 }
 
 export async function verifyOtp(userId: string, channel: OtpChannel, code: string): Promise<boolean> {

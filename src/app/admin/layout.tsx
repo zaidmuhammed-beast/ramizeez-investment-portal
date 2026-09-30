@@ -12,6 +12,7 @@ const NAV: { href: string; label: string; permission?: Permission }[] = [
   { href: "/admin/watchlist", label: "Watchlist", permission: "watchlist.manage" },
   { href: "/admin/audit", label: "Audit log", permission: "audit.view" },
   { href: "/admin/outbox", label: "Outbox", permission: "outbox.view" },
+  { href: "/admin/settings", label: "Settings", permission: "team.manage" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

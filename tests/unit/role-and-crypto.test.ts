@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { randomBytes } from "node:crypto";
 import { blindIndex, decryptString, encryptString } from "@/lib/crypto";
-import { founderChecks, investorChecks, riskScore, type InvestorCheckInput, type RiskAnswers } from "@/lib/kyc/role-checks";
+import { founderChecks, investorChecks, riskScore, type FounderCheckInput, type InvestorCheckInput, type RiskAnswers } from "@/lib/kyc/role-checks";
+import { MIN_AMOUNT_PKR, PLATFORM_TERMS, feeBreakdown, meetsMinimum, minimumIn } from "@/config/platform";
 
 describe("field encryption", () => {
   const key = randomBytes(32);
@@ -60,12 +61,44 @@ describe("investor checks", () => {
     expect(status("inv.ubo", company)).toBe("MANUAL");
     expect(status("inv.entity", { ...company, entityName: "Acme", entityRegNumber: "123", entityDocumentCount: 1 })).toBe("PASS");
   });
+
+  it("enforces the PKR 100,000 minimum in any currency", () => {
+    expect(status("inv.minimum", { ...base, ticketMin: 99_999 })).toBe("FAIL");
+    expect(status("inv.minimum", { ...base, ticketMin: 100_000 })).toBe("PASS");
+    const usd = { ...base, currency: "USD", declaredBudget: 50_000, ticketMin: minimumIn("USD"), ticketMax: 10_000 };
+    expect(status("inv.minimum", usd)).toBe("PASS");
+    expect(status("inv.minimum", { ...usd, ticketMin: minimumIn("USD") - 1 })).toBe("FAIL");
+  });
 });
 
 describe("founder checks", () => {
+  const status = (input: FounderCheckInput, id: string) => founderChecks(input).find((c) => c.id === id)?.status;
+  const terms = { platformTermsVersion: PLATFORM_TERMS.version };
+
   it("requires registration for existing businesses only", () => {
-    expect(founderChecks({ stage: "IDEA", documentCount: 0 })[0].status).toBe("PASS");
-    expect(founderChecks({ stage: "EXISTING", documentCount: 0 })[0].status).toBe("FAIL");
-    expect(founderChecks({ stage: "EXISTING", businessName: "Chai Co", registrationNumber: "0123", documentCount: 2 })[0].status).toBe("PASS");
+    expect(status({ ...terms, stage: "IDEA", documentCount: 0 }, "fdr.registration")).toBe("PASS");
+    expect(status({ ...terms, stage: "EXISTING", documentCount: 0 }, "fdr.registration")).toBe("FAIL");
+    expect(status({ ...terms, stage: "EXISTING", businessName: "Chai Co", registrationNumber: "0123", documentCount: 2 }, "fdr.registration")).toBe("PASS");
+  });
+
+  it("requires acceptance of the current platform terms", () => {
+    expect(status({ ...terms, stage: "IDEA", documentCount: 0 }, "fdr.terms")).toBe("PASS");
+    expect(status({ stage: "IDEA", documentCount: 0 }, "fdr.terms")).toBe("FAIL");
+    expect(status({ platformTermsVersion: "2020-01", stage: "IDEA", documentCount: 0 }, "fdr.terms")).toBe("FAIL");
+  });
+});
+
+describe("platform terms", () => {
+  it("applies the 10% success fee and records the 25% business share", () => {
+    expect(PLATFORM_TERMS.successFeePercent).toBe(10);
+    expect(PLATFORM_TERMS.businessSharePercent).toBe(25);
+    expect(feeBreakdown(1_000_000)).toEqual({ raise: 1_000_000, fee: 100_000, netToBusiness: 900_000, businessSharePercent: 25 });
+  });
+
+  it("converts the minimum for foreign currencies", () => {
+    expect(MIN_AMOUNT_PKR).toBe(100_000);
+    expect(meetsMinimum(100_000, "PKR")).toBe(true);
+    expect(meetsMinimum(minimumIn("GBP"), "GBP")).toBe(true);
+    expect(meetsMinimum(minimumIn("GBP") - 1, "GBP")).toBe(false);
   });
 });

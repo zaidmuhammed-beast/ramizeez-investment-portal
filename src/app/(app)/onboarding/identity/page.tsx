@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BRAND } from "@/config/brand";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -39,8 +40,8 @@ export default async function IdentityPage() {
           {latest.status === "APPROVED" && <Alert tone="success">Your identity is verified.</Alert>}
           {latest.status === "REJECTED" && (
             <Alert tone="error">
-              We could not verify your identity. {latest.decisionReason && <>Reason: {latest.decisionReason}. </>}Contact
-              support@ramizeez.com if you think this is a mistake.
+              We could not verify your identity. {latest.decisionReason && <>Reason: {latest.decisionReason}. </>}Contact{" "}
+              {BRAND.supportEmail} if you think this is a mistake.
             </Alert>
           )}
         </Card>

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { BRAND } from "@/config/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "RamiZeeZ Ventures", template: "%s · RamiZeeZ Ventures" },
+  title: { default: BRAND.name, template: `%s · ${BRAND.name}` },
   description:
     "A RamiZeeZ initiative connecting verified founders with verified investors — pitch, invest and execute with RamiZeeZ in the middle.",
 };

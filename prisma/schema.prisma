@@ -128,15 +128,27 @@ model OtpCode {
   @@index([userId, channel])
 }
 
-// Dev/test outbox: every email & SMS the platform "sends" is recorded here until
-// real providers are wired in.
+enum MessageStatus {
+  RECORDED // outbox provider: stored only, not delivered
+  SENT
+  FAILED
+}
+
+// Log of every email & SMS. With the "outbox" providers (testing) this is the only
+// delivery; with real providers, one-time codes are masked before storing.
 model OutboundMessage {
-  id        String     @id @default(cuid())
-  channel   OtpChannel
-  to        String
-  subject   String?
-  body      String
-  createdAt DateTime   @default(now())
+  id                String        @id @default(cuid())
+  channel           OtpChannel
+  to                String
+  subject           String?
+  body              String
+  provider          String        @default("outbox")
+  status            MessageStatus @default(RECORDED)
+  providerMessageId String?
+  error             String?
+  createdAt         DateTime      @default(now())
+
+  @@index([to, createdAt])
 }
 
 // ─── Files ────────────────────────────────────────────────────────────────────
@@ -402,25 +414,28 @@ enum FounderStage {
 }
 
 model FounderProfile {
-  id                 String       @id @default(cuid())
-  userId             String       @unique
-  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stage              FounderStage
-  businessName       String?
-  sector             String
-  country            String
-  city               String
-  entityType         String? // SOLE_PROPRIETOR | PARTNERSHIP | PRIVATE_LIMITED | LLP | OTHER
-  registrationNumber String?
-  taxNumber          String?
-  foundedYear        Int?
-  employees          Int?
-  personalCapital    Decimal?     @db.Decimal(18, 2)
-  currency           String
-  coFounders         String?
-  preferredDealTypes DealType[]
-  documentIds        String[]
-  updatedAt          DateTime     @updatedAt
+  id                      String       @id @default(cuid())
+  userId                  String       @unique
+  user                    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stage                   FounderStage
+  businessName            String?
+  sector                  String
+  country                 String
+  city                    String
+  entityType              String? // SOLE_PROPRIETOR | PARTNERSHIP | PRIVATE_LIMITED | LLP | OTHER
+  registrationNumber      String?
+  taxNumber               String?
+  foundedYear             Int?
+  employees               Int?
+  personalCapital         Decimal?     @db.Decimal(18, 2)
+  currency                String
+  coFounders              String?
+  preferredDealTypes      DealType[]
+  documentIds             String[]
+  // Acceptance of RamiZeeZ's commercial terms (success fee + business share); see src/config/platform.ts
+  platformTermsVersion    String?
+  platformTermsAcceptedAt DateTime?
+  updatedAt               DateTime     @updatedAt
 }
 
 // ─── AML screening (in-house watchlist until an external provider is wired in) ─

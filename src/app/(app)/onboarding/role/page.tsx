@@ -118,6 +118,7 @@ export default async function RolePage() {
                       currency: fdr.currency,
                       coFounders: fdr.coFounders ?? "",
                       preferredDealTypes: fdr.preferredDealTypes,
+                      platformTermsVersion: fdr.platformTermsVersion ?? "",
                     }
                   : { country: user.countryOfResidence, currency: user.countryOfResidence === "PK" ? "PKR" : "USD" }
               }

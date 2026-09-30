@@ -237,6 +237,15 @@ test("investor onboarding through all verification tiers", async ({ browser }) =
   if ((await landed.innerText()).includes("two-factor")) await setup2fa(admin);
   await expect(admin.getByRole("heading", { name: /Good day/ })).toBeVisible();
   await shot(admin, "11-admin-overview");
+
+  // Settings: terms, providers and a test message through the configured email provider.
+  await admin.goto("/admin/settings");
+  await expect(admin.getByText("Success fee")).toBeVisible();
+  await admin.getByLabel("Send to").fill("ops@example.com");
+  await admin.getByRole("button", { name: "Send test" }).click();
+  await expect(admin.getByText(/Test email sent to ops@example.com/)).toBeVisible();
+  await shot(admin, "11b-admin-settings");
+
   await admin.goto("/admin/cases");
   await shot(admin, "12-admin-queue");
   await admin.getByRole("row", { name: new RegExp(fullName) }).getByRole("link").first().click();
@@ -275,6 +284,12 @@ test("investor onboarding through all verification tiers", async ({ browser }) =
   await page.getByLabel(/How long can you leave money/).selectOption("GT5");
   await page.getByLabel(/What share of your total net worth/).selectOption("10TO25");
   await page.getByLabel(/lost half its value/).selectOption("HOLD");
+  // USD 100 is below the PKR 100,000 platform minimum.
+  await page.getByLabel("Minimum per deal").fill("100");
+  await page.getByRole("button", { name: "Save investor profile" }).click();
+  await expect(page.getByText(/The minimum investment per deal is PKR 100,000 \(≈ USD \d+\)/)).toBeVisible();
+  await page.getByLabel("Minimum per deal").fill("10000");
+  await page.locator("#proofOfFunds").setInputFiles({ name: "bank-statement.pdf", mimeType: "application/pdf", buffer: PDF });
   await page.getByRole("button", { name: "Save investor profile" }).click();
   await expect(page.getByText("Investor profile saved.")).toBeVisible();
   await shot(page, "14-role-investor");

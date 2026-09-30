@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { initialFormState } from "@/lib/form-state";
+import { BRAND } from "@/config/brand";
 import { Button, LinkButton, SubmitButton } from "@/components/ui/button";
 import { Form, TextField } from "@/components/ui/form";
 import { Alert } from "@/components/ui/alert";
@@ -14,7 +15,7 @@ export function TotpSetupForm({ qr, secret, next }: { qr: string; secret: string
 
   if (codes) {
     const download = () => {
-      const blob = new Blob([`RamiZeeZ Ventures recovery codes\n\n${codes.join("\n")}\n`], { type: "text/plain" });
+      const blob = new Blob([`${BRAND.name} recovery codes\n\n${codes.join("\n")}\n`], { type: "text/plain" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "ramizeez-recovery-codes.txt";

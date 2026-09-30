@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { BRAND } from "@/config/brand";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -193,8 +194,9 @@ export async function verifyContactAction(_: FormState, fd: FormData): Promise<F
   if (intent === "resend") {
     const rl = rateLimit(`otp-send:${user.id}:${channel}`, 3, 10 * 60 * 1000);
     if (!rl.ok) return tooMany(rl.retryAfterSec);
-    await issueOtp(user, channel);
+    const sent = await issueOtp(user, channel);
     refresh();
+    if (!sent) return { message: `We couldn't send the code right now. Please try again in a minute, or contact ${BRAND.supportEmail}.` };
     return { ok: true, message: channel === "EMAIL" ? "A new code was sent to your email." : "A new code was sent to your phone." };
   }
 

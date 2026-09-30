@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BRAND } from "@/config/brand";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { LoginForm } from "./login-form";
@@ -17,7 +18,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       )}
       <LoginForm />
       <p className="mt-6 text-center text-sm text-slate-400">
-        New to RamiZeeZ Ventures?{" "}
+        New to {BRAND.name}?{" "}
         <Link href="/signup" className="font-medium text-brand-300 hover:text-brand-200">
           Create an account
         </Link>

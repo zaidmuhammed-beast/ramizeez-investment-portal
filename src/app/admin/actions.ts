@@ -9,6 +9,8 @@ import { env } from "@/lib/env";
 import { randomToken } from "@/lib/crypto";
 import { unseal } from "@/lib/keys";
 import { sendMessage } from "@/lib/messaging";
+import { rateLimit } from "@/lib/rate-limit";
+import { BRAND } from "@/config/brand";
 import { requireTeam, can, DECIDE_PERMISSION } from "@/lib/auth/rbac";
 import { hashSecret } from "@/lib/auth/password";
 import { recomputeTier } from "@/lib/onboarding";
@@ -233,4 +235,35 @@ export async function revealDocumentNumberAction(docId: string): Promise<string>
   const doc = await db.identityDocument.findUniqueOrThrow({ where: { id: docId } });
   await audit("kyc.document_number.revealed", { actorId: me.id, targetType: "IdentityDocument", targetId: docId });
   return unseal(doc.numberEnc);
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export async function sendTestMessageAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireTeam("team.manage");
+  const rl = rateLimit(`test-message:${me.id}`, 10, 60 * 60 * 1000);
+  if (!rl.ok) return { message: "Too many test messages. Try again later." };
+  const channel = fd.get("channel") === "PHONE" ? "PHONE" : "EMAIL";
+  const raw = String(fd.get("to") ?? "").trim();
+  let to: string | null;
+  if (channel === "EMAIL") {
+    const parsed = emailSchema.safeParse(raw);
+    to = parsed.success ? parsed.data : null;
+  } else {
+    to = normalizePhone(raw, "PK");
+  }
+  if (!to) return { errors: { to: channel === "EMAIL" ? "Enter a valid email" : "Enter a mobile number, e.g. +923001234567" }, values: formValues(fd) };
+
+  const kind = channel === "EMAIL" ? "email" : "SMS";
+  const sent = await sendMessage(
+    channel,
+    to,
+    channel === "EMAIL" ? `${BRAND.name} test message` : null,
+    `This is a test message from ${BRAND.name}. Your ${kind} provider is working.`,
+  );
+  await audit("settings.messaging.test", { actorId: me.id, metadata: { channel, sent } });
+  refresh();
+  return sent
+    ? { ok: true, message: `Test ${kind} sent to ${to}. The outbox shows the provider's response.` }
+    : { message: "Delivery failed. The error is shown in the outbox." };
 }

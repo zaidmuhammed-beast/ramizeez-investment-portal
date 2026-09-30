@@ -1,5 +1,6 @@
 // Automated checks for Tier 3 (role verification). Pure functions, unit-tested.
 import type { CheckResult } from "./types";
+import { MIN_AMOUNT_PKR, PLATFORM_TERMS, meetsMinimum, minimumIn } from "@/config/platform";
 
 export const ENTITY_INVESTOR_TYPES = ["COMPANY", "FUND", "FAMILY_OFFICE"] as const;
 
@@ -74,6 +75,15 @@ export function investorChecks(i: InvestorCheckInput): CheckResult[] {
       ? `${fmt(i.ticketMin)}–${fmt(i.ticketMax)} per deal within a budget of ${fmt(i.declaredBudget)}`
       : "The minimum ticket must be ≤ the maximum ticket, and the maximum ticket ≤ the total budget",
   });
+  const minOk = meetsMinimum(i.ticketMin, i.currency);
+  out.push({
+    id: "inv.minimum",
+    label: "Platform minimum",
+    status: minOk ? "PASS" : "FAIL",
+    detail: minOk
+      ? `Minimum ticket meets the PKR ${MIN_AMOUNT_PKR.toLocaleString("en-US")} platform minimum`
+      : `Minimum ticket is below PKR ${MIN_AMOUNT_PKR.toLocaleString("en-US")} (≈ ${fmt(minimumIn(i.currency))})`,
+  });
   out.push({
     id: "inv.sof",
     label: "Source of funds",
@@ -126,6 +136,7 @@ export function investorChecks(i: InvestorCheckInput): CheckResult[] {
 
 export type FounderCheckInput = {
   stage: "IDEA" | "EXISTING";
+  platformTermsVersion?: string | null;
   businessName?: string | null;
   registrationNumber?: string | null;
   documentCount: number;
@@ -133,6 +144,15 @@ export type FounderCheckInput = {
 
 export function founderChecks(f: FounderCheckInput): CheckResult[] {
   const out: CheckResult[] = [];
+  const termsOk = f.platformTermsVersion === PLATFORM_TERMS.version;
+  out.push({
+    id: "fdr.terms",
+    label: "RamiZeeZ terms",
+    status: termsOk ? "PASS" : "FAIL",
+    detail: termsOk
+      ? `Accepted ${PLATFORM_TERMS.successFeePercent}% success fee and ${PLATFORM_TERMS.businessSharePercent}% business share (terms ${PLATFORM_TERMS.version})`
+      : "The founder has not accepted the current platform terms",
+  });
   if (f.stage === "EXISTING") {
     const ok = !!f.businessName && !!f.registrationNumber && f.documentCount > 0;
     out.push({

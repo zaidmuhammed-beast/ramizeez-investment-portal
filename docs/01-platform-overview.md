@@ -55,7 +55,7 @@ flowchart LR
 
 ## 1.5 Revenue model
 
-**Decided:** a percentage of each raise, plus a share in the business. The other options below remain possible additions.
+**Decided:** a **10% success fee** on each amount raised, plus a **25% share in each funded business**, in return for managing agreements, execution and marketing. The minimum raise and minimum investment are **PKR 100,000**. The other options below remain possible additions.
 
 - **Success fee**: a percentage of every funded raise (the most common model).
 - **Equity or carry**: a small equity stake in each funded business, in return for execution and marketing services.

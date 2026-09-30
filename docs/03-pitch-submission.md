@@ -35,8 +35,9 @@ A pitch is a structured **proposal**, not a single upload. Founders fill in guid
 - Supporting documents (from Tier 3)
 
 ### 5. The proposal (the "ask")
-- **Amount required** (PKR / USD)
-- **Minimum ticket** per investor, and whether several investors can join the round
+- **Amount required** (PKR / USD), at least **PKR 100,000**
+- **Minimum ticket** per investor (at least PKR 100,000), and whether several investors can join the round
+- A clear display of RamiZeeZ's terms: **10% of the amount raised** and a **25% share in the business**. For example, a PKR 10M raise gives the business PKR 9M, and RamiZeeZ holds 25%.
 - **Deal structure**: equity %, convertible note, revenue share, profit share, Shariah-compliant Musharakah or Mudarabah, or debt
 - The valuation, and how it was worked out
 - What the founder wants beyond money (mentorship, network, RamiZeeZ marketing, etc.)

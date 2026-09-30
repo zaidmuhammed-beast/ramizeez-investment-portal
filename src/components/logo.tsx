@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BRAND } from "@/config/brand";
 
 export function Logo({ href = "/", subtitle = true }: { href?: string; subtitle?: boolean }) {
   return (
@@ -16,8 +17,8 @@ export function Logo({ href = "/", subtitle = true }: { href?: string; subtitle?
         </svg>
       </span>
       <span className="leading-tight">
-        <span className="block text-[15px] font-semibold tracking-tight text-white">RamiZeeZ Ventures</span>
-        {subtitle && <span className="block text-[11px] uppercase tracking-[0.18em] text-slate-400">A RamiZeeZ initiative</span>}
+        <span className="block text-[15px] font-semibold tracking-tight text-white">{BRAND.name}</span>
+        {subtitle && <span className="block text-[11px] uppercase tracking-[0.18em] text-slate-400">{BRAND.tagline}</span>}
       </span>
     </Link>
   );

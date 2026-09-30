@@ -13,6 +13,7 @@ import { CURRENCIES } from "@/lib/countries";
 import { DEAL_TYPES, ENTITY_TYPES, GEOGRAPHIES, INCOME_BANDS, INVESTOR_TYPES, NET_WORTH_BANDS, SECTORS, SOURCES_OF_FUNDS, STAGES } from "@/lib/taxonomy";
 import { founderChecks, investorChecks, riskScore, ENTITY_INVESTOR_TYPES, type RiskAnswers } from "@/lib/kyc/role-checks";
 import { riskFrom } from "@/lib/kyc/types";
+import { MIN_AMOUNT_PKR, PLATFORM_TERMS, formatMoney, meetsMinimum, minimumIn } from "@/config/platform";
 import { formValues, type FormState } from "@/lib/form-state";
 import { countrySchema, fieldErrors, moneySchema, optionalText, requiredText } from "@/lib/validation/common";
 
@@ -80,6 +81,9 @@ export async function saveInvestorAction(_: FormState, fd: FormData): Promise<Fo
   const v = parsed.data;
   if (v.ticketMin > v.ticketMax) return { errors: { ticketMin: "Must not exceed the maximum ticket" }, values };
   if (v.ticketMax > v.declaredBudget) return { errors: { ticketMax: "Must not exceed your total budget" }, values };
+  if (!meetsMinimum(v.ticketMin, v.currency)) {
+    return { errors: { ticketMin: `The minimum investment per deal is PKR ${MIN_AMOUNT_PKR.toLocaleString("en-US")} (≈ ${formatMoney(minimumIn(v.currency), v.currency)})` }, values };
+  }
   const isEntity = (ENTITY_INVESTOR_TYPES as readonly string[]).includes(v.investorType);
   if (isEntity && (!v.entityName || !v.entityRegNumber)) {
     const errors: Record<string, string> = {};
@@ -146,6 +150,7 @@ const founderSchema = z.object({
   currency: z.enum(CURRENCIES, { error: "Select a currency" }),
   coFounders: optionalText(2000),
   preferredDealTypes: z.array(z.enum(keys(DEAL_TYPES))).min(1, "Select at least one deal type"),
+  acceptPlatformTerms: z.literal("on", { error: "You must accept the RamiZeeZ terms to raise through the platform" }),
 });
 
 export async function saveFounderAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -194,6 +199,10 @@ export async function saveFounderAction(_: FormState, fd: FormData): Promise<For
     coFounders: v.coFounders ?? null,
     preferredDealTypes: v.preferredDealTypes,
     documentIds: docs,
+    // Keep the original acceptance date unless the terms have changed since.
+    platformTermsVersion: PLATFORM_TERMS.version,
+    platformTermsAcceptedAt:
+      existing?.platformTermsVersion === PLATFORM_TERMS.version && existing.platformTermsAcceptedAt ? existing.platformTermsAcceptedAt : new Date(),
   };
   await db.founderProfile.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data });
   await audit("profile.founder.saved", { actorId: user.id });
@@ -226,7 +235,7 @@ export async function submitRoleAction(): Promise<void> {
         })
       : []),
     ...(fdr
-      ? founderChecks({ stage: fdr.stage, businessName: fdr.businessName, registrationNumber: fdr.registrationNumber, documentCount: fdr.documentIds.length })
+      ? founderChecks({ stage: fdr.stage, platformTermsVersion: fdr.platformTermsVersion, businessName: fdr.businessName, registrationNumber: fdr.registrationNumber, documentCount: fdr.documentIds.length })
       : []),
   ];
   const c = await db.verificationCase.create({

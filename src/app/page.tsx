@@ -1,11 +1,12 @@
 import { PublicNav } from "@/components/public-nav";
 import { LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { MIN_AMOUNT_PKR, PLATFORM_TERMS } from "@/config/platform";
 
 const portals = [
   {
     title: "For founders",
-    body: "Pitch a startup idea or an existing business. Submit your experience, costing and roadmap. We screen every pitch and put the best ones in front of verified investors.",
+    body: `Pitch a startup idea or an existing business, raising from PKR ${MIN_AMOUNT_PKR.toLocaleString("en-US")}. Submit your experience, costing and roadmap. We screen every pitch and put the best ones in front of verified investors.`,
     tag: "Pitch",
   },
   {
@@ -15,7 +16,7 @@ const portals = [
   },
   {
     title: "RamiZeeZ in the middle",
-    body: "We verify everyone, protect founders' ideas, run the deal, hold funds in escrow against milestones, and manage execution, marketing and agreements.",
+    body: `We verify everyone, protect founders' ideas, run the deal, hold funds in escrow against milestones, and manage execution, marketing and agreements. In return, RamiZeeZ receives ${PLATFORM_TERMS.successFeePercent}% of each raise and a ${PLATFORM_TERMS.businessSharePercent}% share in the business.`,
     tag: "Execute",
   },
 ];

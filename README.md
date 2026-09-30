@@ -32,7 +32,7 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
 - Decisions (approve / request info / reject) with a required reason. The applicant is notified. Identity approval requires the officer to confirm that they checked liveness, face match and the document.
 - **The verified budget is set by the officer** from the proof of funds. It will control which pitches an investor can see.
 - **Four-eyes rule:** the person who approved an applicant's role verification cannot also give that applicant final approval.
-- Role-based access for 9 team roles (least privilege), team member creation with forced password change, user suspension, the AML watchlist, the audit log, and the message outbox.
+- Role-based access for 9 team roles (least privilege), team member creation with forced password change, user suspension, the AML watchlist, the audit log, the message log, and settings (platform terms, email/SMS providers and test messages).
 
 **Security**
 - argon2id passwords with a check against breached passwords (Have I Been Pwned, k-anonymity).
@@ -75,13 +75,38 @@ npm run dev                 # http://localhost:3000
 
 Sign in as the seeded admin at `/login`. You'll set up 2FA on first sign-in.
 
-Until real email and SMS providers are connected, every message is written to the **outbox** (`/admin/outbox`). With `DEV_SHOW_OTP=true`, the verification page also shows the latest codes. With `KYC_ALLOW_FILE_UPLOAD=true`, testers without a camera can upload photos; these are flagged "not live" to reviewers. The app refuses to start with either setting on when `APP_ENV=production`.
+By default, email and SMS use the testing **outbox**: messages are recorded in the message log (`/admin/outbox`) but not delivered. With `DEV_SHOW_OTP=true`, the verification page also shows the latest codes. With `KYC_ALLOW_FILE_UPLOAD=true`, testers without a camera can upload photos; these are flagged "not live" to reviewers.
+
+## Platform terms
+
+The commercial terms live in one file, `src/config/platform.ts`:
+
+- **Success fee:** 10% of each amount raised.
+- **Business share:** 25% of each funded business.
+- **Minimum:** PKR 100,000 for each raise and each investment. For foreign currencies it is checked with indicative exchange rates in the same file.
+
+Founders accept the terms (with a version number) during role verification. Reviewers see the acceptance in the case file. The brand name is a placeholder in `src/config/brand.ts` until the final branding is chosen.
+
+## Email & SMS providers
+
+Pick one of each in `.env`; every option is documented in `.env.example`. **Admin → Settings** shows which providers are active and can send a test message. The message log records each delivery's status and any provider error.
+
+| Channel | `EMAIL_PROVIDER` / `SMS_PROVIDER` | Settings needed |
+|---------|-----------------------------------|-----------------|
+| Email | `resend` | `RESEND_API_KEY`, `EMAIL_FROM` |
+| Email | `sendgrid` | `SENDGRID_API_KEY`, `EMAIL_FROM` |
+| Email | `smtp` (Google Workspace, Microsoft 365, Zoho, SES SMTP…) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` |
+| SMS | `twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` |
+| SMS | `vonage` | `VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_FROM` |
+| SMS | `http` (any local Pakistani gateway with an HTTP API) | `SMS_HTTP_URL` with `{to}` / `{to_digits}` / `{to_local}` / `{message}` placeholders, plus optional method, body, headers and success text |
+
+The app checks this configuration at startup and refuses to run if a chosen provider is missing a setting. With `APP_ENV=production`, it also refuses to run on the testing outbox, with `DEV_SHOW_OTP`, or with `KYC_ALLOW_FILE_UPLOAD`. When a real provider is in use, one-time codes are masked in the message log.
 
 ## Checks & tests
 
 ```bash
 npm run typecheck && npm run lint
-npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, encryption
+npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, encryption
 npm run build && npm start  # then, in another terminal:
 npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 approvals by two team members
 ```
@@ -104,7 +129,8 @@ tests/unit, tests/e2e       Vitest and Playwright
 
 ## Before production
 
-- Connect real email and SMS providers in `src/lib/messaging.ts`, and set `DEV_SHOW_OTP=false`.
+- Choose the email and SMS providers, add their keys, check them from Admin → Settings, and set `DEV_SHOW_OTP=false`.
+- Replace the indicative exchange rates with a live feed, or review them monthly.
 - Connect Sumsub (or NADRA Verisys through a licensed provider) and load official sanctions lists.
 - Move file storage to encrypted S3, and store the encryption keys in a managed key service with a rotation plan.
 - Move the in-memory rate limiter to Redis before running more than one app server.
