@@ -50,4 +50,8 @@ if [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
   echo "Seeding the super admin ${SEED_ADMIN_EMAIL:-admin@ramizeez.test} (remove SEED_ADMIN_PASSWORD after the first deploy)"
   npx prisma db seed
 fi
+if [ -n "${DEMO_USERS_PASSWORD:-}" ]; then
+  echo "Creating demo accounts (remove DEMO_USERS_PASSWORD once they exist)"
+  npx tsx prisma/seed-demo.ts
+fi
 npx next build

@@ -54,6 +54,20 @@ tells Netlify's secret scanner to ignore them either way).
 3. Delete `SEED_ADMIN_PASSWORD` from the environment variables.
 4. Add more team members from **Admin → Team**.
 
+### Demo accounts (test sites only)
+
+Set `DEMO_USERS_PASSWORD` (12+ characters) and redeploy to create three ready-made accounts,
+all using that password. Each sets up 2FA at first sign-in:
+
+| Email | Account |
+|-------|---------|
+| `demo.investor@ramizeez.test` | Investor, fully verified (Tier 4), verified budget PKR 5,000,000, all sectors and deal types |
+| `demo.founder@ramizeez.test` | Founder, fully verified (Tier 4), platform terms accepted: can build, submit and list a pitch |
+| `demo.manager@ramizeez.test` | Team member with the Execution Manager role (change it in Admin → Team) |
+
+Existing accounts are never changed. Remove `DEMO_USERS_PASSWORD` once they exist, and never
+use demo accounts on a production site.
+
 Every push to the deployed branch redeploys the site. Pull requests get their own preview
 deploys, which share the same database unless you give them a separate one.
 
