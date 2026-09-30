@@ -5,7 +5,7 @@
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Web app (all 3 portals) | **Next.js + TypeScript** | One codebase, fast, good for SEO on public pages |
-| API / backend | Next.js server routes at first → **NestJS** service as it grows | Clear modules (auth, KYC, pitches, deals) |
+| API / backend | Next.js Server Actions and route handlers (a separate service can be split out later if needed) | One deployable, with auth checked in every action |
 | Database | **PostgreSQL** + Prisma ORM | Relational data, transactions, reliable |
 | File storage | S3-compatible, **encrypted**, private buckets, signed URLs | KYC documents, pitch files |
 | Cache / queues | Redis + a job queue | OTPs, rate limits, background KYC and AML checks |
@@ -38,21 +38,27 @@
 
 | Phase | Scope | Result |
 |-------|-------|--------|
-| **1: Foundation** | Project setup, design system, auth (OTP + 2FA/passkey), roles, admin login, audit log | Secure accounts for all 3 user types |
-| **2: Verification** | Tiers 0–4, KYC provider integration, deep profile forms, verification queue, AML screening | Only verified users on the platform |
+| **1: Foundation** ✅ | Project setup, design system, auth (OTP + 2FA/passkey), roles, admin login, audit log | Secure accounts for all 3 user types |
+| **2: Verification** ✅ | Tiers 0–4, KYC provider integration, deep profile forms, verification queue, AML screening | Only verified users on the platform |
 | **3: Pitching** | Pitch builder (all sections, costing table, roadmap), drafts, submission, screening pipeline | Founders can submit, the team can screen |
 | **4: Investor portal** | Investor profile & verified budget, matching, blind teasers, NDA e-sign, secure viewer & watermarking, unlock quotas | Investors browse safely |
 | **5: Deals** | Q&A, offers, term sheets, agreements, e-signature, escrow & milestone tracking | Deals close on the platform |
 | **6: Tank & growth** | Live pitch sessions, execution and marketing module, investor reports, mobile app, Urdu language | The full Shark Tank experience |
 
-## 6.5 Open decisions for RamiZeeZ
+## 6.5 Decisions
 
-1. **Launch market:** Pakistan only at first, or also overseas Pakistanis and foreign investors?
-2. **Legal structure & licence:** what is RamiZeeZ's regulatory status (with SECP) for handling investments?
-3. **KYC provider & budget:** each verification has a per-check cost. Which provider?
-4. **Revenue model:** success fee %, equity, listing fee, membership, or a mix?
-5. **Deal types:** equity only, or also Shariah-compliant, revenue-share and debt?
-6. **Investor types at launch:** individuals only, or also companies and funds?
-7. **Minimum amounts:** the minimum raise per pitch and the minimum investor ticket
-8. **Tech stack:** is the proposal above acceptable, or does the team already prefer another stack?
-9. **Branding:** the platform's name, logo and colours as a RamiZeeZ subsidiary
+| # | Topic | Decision |
+|---|-------|----------|
+| 1 | Legal status | Legal agreements are in progress. The `/legal/*` pages are placeholders until they're final. |
+| 2 | Launch market | Pakistan, **all overseas Pakistanis and foreign investors** from launch: any country of residence, international phone numbers, CNIC / NICOP / passport / national ID, multi-currency budgets. |
+| 3 | Identity-check provider | **In-house checks for testing now** (see the README), behind a `KycProvider` interface, so **Sumsub** can be plugged in later without changing the flow. |
+| 4 | Deal types | Users choose any mix of **Equity, Musharakah, Mudarabah, Revenue share**. Investors can also ask to see only Shariah-compliant deals. |
+| 5 | RamiZeeZ revenue | A **percentage of each raise** plus **a share in the business**. |
+| 6 | Tech stack | **Next.js + TypeScript + PostgreSQL** (Prisma ORM), with a clean **glassmorphic** UI. |
+
+## 6.6 Remaining open questions
+
+1. The success-fee percentage and the equity share RamiZeeZ takes, and whether they vary by deal size.
+2. The minimum raise per pitch and the minimum investor ticket.
+3. The platform's public name and branding. "RamiZeeZ Ventures" is a placeholder, set by `APP_NAME` and the logo component.
+4. Which email/SMS providers to use (for example AWS SES + Twilio, or a local SMS gateway for Pakistan).

@@ -53,7 +53,9 @@ flowchart LR
 | **Execution** | An assigned execution manager, milestone tracking, monthly reports to investors |
 | **Marketing** | Brand, digital marketing and launch support for funded businesses (can be a paid service) |
 
-## 1.5 Revenue model (options to decide)
+## 1.5 Revenue model
+
+**Decided:** a percentage of each raise, plus a share in the business. The other options below remain possible additions.
 
 - **Success fee**: a percentage of every funded raise (the most common model).
 - **Equity or carry**: a small equity stake in each funded business, in return for execution and marketing services.

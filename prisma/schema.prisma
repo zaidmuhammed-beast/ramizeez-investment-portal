@@ -1,0 +1,530 @@
+// RamiZeeZ Investment Portal — database schema.
+// Sensitive values (document numbers, TOTP secrets) are stored encrypted (`*Enc` columns);
+// `*Index` columns hold keyed HMAC blind indexes used for duplicate detection.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Accounts & auth ──────────────────────────────────────────────────────────
+
+enum Role {
+  FOUNDER
+  INVESTOR
+  TEAM
+}
+
+enum TeamRole {
+  SUPER_ADMIN
+  VERIFICATION_OFFICER
+  DEAL_ANALYST
+  INVESTMENT_COMMITTEE
+  LEGAL
+  FINANCE
+  EXECUTION_MANAGER
+  MARKETING
+  SUPPORT
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  CLOSED
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  emailVerifiedAt    DateTime?
+  phone              String // E.164
+  phoneVerifiedAt    DateTime?
+  passwordHash       String
+  firstName          String
+  lastName           String
+  countryOfResidence String // ISO 3166-1 alpha-2
+  roles              Role[]
+  teamRole           TeamRole?
+  status             AccountStatus @default(ACTIVE)
+  statusReason       String?
+  tier               Int           @default(0)
+  mustChangePassword Boolean       @default(false)
+
+  totpSecretEnc String?
+  totpEnabledAt DateTime?
+  totpLastStep  Int? // last accepted TOTP time step, blocks code replay
+  recoveryCodes String[] // argon2 hashes, consumed codes are removed
+
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sessions          Session[]
+  otpCodes          OtpCode[]
+  files             StoredFile[]
+  identityDocuments IdentityDocument[]
+  livenessChecks    LivenessCheck[]
+  addresses         Address[]
+  personalProfile   PersonalProfile?
+  education         Education[]
+  experience        Experience[]
+  pastVentures      PastVenture[]
+  references        Reference[]
+  goals             GoalsProfile?
+  declaration       IntegrityDeclaration?
+  investorProfile   InvestorProfile?
+  founderProfile    FounderProfile?
+  amlScreenings     AmlScreening[]
+  cases             VerificationCase[]    @relation("CaseSubject")
+  assignedCases     VerificationCase[]    @relation("CaseAssignee")
+  decidedCases      VerificationCase[]    @relation("CaseDecider")
+  caseNotes         CaseNote[]
+  auditLogs         AuditLog[]
+}
+
+enum SessionStage {
+  PENDING_2FA
+  ACTIVE
+}
+
+model Session {
+  id         String       @id @default(cuid())
+  tokenHash  String       @unique
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stage      SessionStage
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime     @default(now())
+  lastSeenAt DateTime     @default(now())
+  expiresAt  DateTime
+
+  @@index([userId])
+}
+
+enum OtpChannel {
+  EMAIL
+  PHONE
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel    OtpChannel
+  codeHash   String
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([userId, channel])
+}
+
+// Dev/test outbox: every email & SMS the platform "sends" is recorded here until
+// real providers are wired in.
+model OutboundMessage {
+  id        String     @id @default(cuid())
+  channel   OtpChannel
+  to        String
+  subject   String?
+  body      String
+  createdAt DateTime   @default(now())
+}
+
+// ─── Files ────────────────────────────────────────────────────────────────────
+
+enum FileKind {
+  ID_FRONT
+  ID_BACK
+  SELFIE
+  PROOF_OF_ADDRESS
+  PROOF_OF_FUNDS
+  BUSINESS_REGISTRATION
+  TAX_REGISTRATION
+  BANK_STATEMENT
+  FINANCIAL_STATEMENT
+  OTHER
+}
+
+model StoredFile {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind         FileKind
+  originalName String?
+  mimeType     String
+  size         Int
+  sha256       String
+  storageKey   String   @unique
+  liveCapture  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([sha256])
+  @@index([ownerId, kind])
+}
+
+// ─── Tier 1: identity ─────────────────────────────────────────────────────────
+
+enum IdDocumentType {
+  CNIC
+  NICOP
+  PASSPORT
+  NATIONAL_ID
+}
+
+model IdentityDocument {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           IdDocumentType
+  numberEnc      String
+  numberIndex    String
+  numberLast4    String
+  issuingCountry String
+  fullNameOnDoc  String
+  dateOfBirth    DateTime
+  gender         String?
+  issueDate      DateTime?
+  expiryDate     DateTime
+  mrz            String?
+  frontFileId    String
+  backFileId     String?
+  createdAt      DateTime       @default(now())
+
+  @@index([numberIndex])
+  @@index([userId])
+}
+
+model LivenessCheck {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge  String[] // prompts the user was asked to perform, in order
+  frameIds   String[] // StoredFile ids, one per prompt
+  issuedAt   DateTime
+  capturedAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum AddressKind {
+  CURRENT
+  PERMANENT
+}
+
+model Address {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        AddressKind
+  line1       String
+  line2       String?
+  city        String
+  region      String?
+  postalCode  String?
+  country     String
+  proofFileId String?
+  verified    Boolean     @default(false)
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([userId, kind])
+}
+
+// ─── Tier 2: deep profile ─────────────────────────────────────────────────────
+
+model PersonalProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferredName      String?
+  dateOfBirth        DateTime
+  gender             String?
+  nationalities      String[]
+  fatherOrSpouseName String
+  maritalStatus      String?
+  dependants         Int?
+  languages          String[]
+  linkedinUrl        String?
+  websiteUrl         String?
+  otherLinks         String?
+  bio                String
+  updatedAt          DateTime @updatedAt
+}
+
+model Education {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   String
+  qualification String
+  fieldOfStudy  String?
+  startYear     Int?
+  endYear       Int?
+  notes         String?
+  position      Int     @default(0)
+
+  @@index([userId])
+}
+
+model Experience {
+  id               String  @id @default(cuid())
+  userId           String
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employer         String
+  title            String
+  startYear        Int
+  endYear          Int?
+  responsibilities String
+  reasonForLeaving String?
+  position         Int     @default(0)
+
+  @@index([userId])
+}
+
+model PastVenture {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  sector    String
+  startYear Int
+  endYear   Int?
+  outcome   String // RUNNING | SOLD | CLOSED | OTHER
+  lessons   String
+  position  Int    @default(0)
+
+  @@index([userId])
+}
+
+model Reference {
+  id           String @id @default(cuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String
+  email        String
+  phone        String
+  position     Int    @default(0)
+
+  @@index([userId])
+}
+
+model GoalsProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals1y           String
+  goals5y           String
+  goals10y          String
+  motivation        String
+  causeCare         String
+  successDefinition String
+  timeCommitment    String // FULL_TIME | PART_TIME | FLEXIBLE
+  otherCommitments  String?
+  values            String
+  setbackStory      String
+  updatedAt         DateTime @updatedAt
+}
+
+model IntegrityDeclaration {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hasCriminalRecord      Boolean
+  hasPendingLitigation   Boolean
+  hasBankruptcyOrDefault Boolean
+  isPep                  Boolean
+  hasConflictOfInterest  Boolean
+  details                String?
+  truthAffirmed          Boolean
+  consentBackgroundCheck Boolean
+  signedAt               DateTime
+  signedIp               String?
+}
+
+// ─── Tier 3: role profiles ────────────────────────────────────────────────────
+
+enum DealType {
+  EQUITY
+  MUSHARAKAH
+  MUDARABAH
+  REVENUE_SHARE
+}
+
+enum InvestorType {
+  INDIVIDUAL
+  HIGH_NET_WORTH
+  COMPANY
+  FUND
+  FAMILY_OFFICE
+}
+
+model InvestorProfile {
+  id                String       @id @default(cuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investorType      InvestorType
+  currency          String
+  declaredBudget    Decimal      @db.Decimal(18, 2)
+  verifiedBudget    Decimal?     @db.Decimal(18, 2)
+  ticketMin         Decimal      @db.Decimal(18, 2)
+  ticketMax         Decimal      @db.Decimal(18, 2)
+  sourceOfFunds     String[]
+  sourceOfWealth    String
+  annualIncomeBand  String
+  netWorthBand      String
+  experience        String
+  sectors           String[]
+  stages            String[]
+  dealTypes         DealType[]
+  geographies       String[]
+  shariahOnly       Boolean      @default(false)
+  riskAnswers       Json
+  riskScore         Int
+  entityName        String?
+  entityRegNumber   String?
+  proofOfFundsIds   String[]
+  entityDocumentIds String[]
+  updatedAt         DateTime     @updatedAt
+}
+
+enum FounderStage {
+  IDEA
+  EXISTING
+}
+
+model FounderProfile {
+  id                 String       @id @default(cuid())
+  userId             String       @unique
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stage              FounderStage
+  businessName       String?
+  sector             String
+  country            String
+  city               String
+  entityType         String? // SOLE_PROPRIETOR | PARTNERSHIP | PRIVATE_LIMITED | LLP | OTHER
+  registrationNumber String?
+  taxNumber          String?
+  foundedYear        Int?
+  employees          Int?
+  personalCapital    Decimal?     @db.Decimal(18, 2)
+  currency           String
+  coFounders         String?
+  preferredDealTypes DealType[]
+  documentIds        String[]
+  updatedAt          DateTime     @updatedAt
+}
+
+// ─── AML screening (in-house watchlist until an external provider is wired in) ─
+
+model WatchlistEntry {
+  id             String    @id @default(cuid())
+  fullName       String
+  normalizedName String
+  aliases        String[]
+  dateOfBirth    DateTime?
+  country        String?
+  listSource     String // e.g. UN_SC, OFAC, NACTA_4TH_SCHEDULE, INTERNAL
+  reason         String?
+  createdAt      DateTime  @default(now())
+
+  @@index([normalizedName])
+}
+
+enum AmlResult {
+  CLEAR
+  POTENTIAL_MATCH
+}
+
+model AmlScreening {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  result          AmlResult
+  hits            Json
+  screenedName    String
+  screenedAt      DateTime  @default(now())
+  nextScreeningAt DateTime
+
+  @@index([userId])
+}
+
+// ─── Verification cases (review workflow) ─────────────────────────────────────
+
+enum CaseKind {
+  IDENTITY // Tier 1
+  ROLE // Tier 3
+  FINAL // Tier 4
+}
+
+enum CaseStatus {
+  IN_REVIEW
+  NEEDS_INFO
+  APPROVED
+  REJECTED
+}
+
+model VerificationCase {
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation("CaseSubject", fields: [userId], references: [id], onDelete: Cascade)
+  kind           CaseKind
+  status         CaseStatus @default(IN_REVIEW)
+  checks         Json // CheckResult[] from the KYC provider
+  riskLevel      String // LOW | MEDIUM | HIGH
+  provider       String
+  applicantNote  String? // e.g. interview availability given by the applicant
+  assignedToId   String?
+  assignedTo     User?      @relation("CaseAssignee", fields: [assignedToId], references: [id])
+  decisionReason String?
+  decidedById    String?
+  decidedBy      User?      @relation("CaseDecider", fields: [decidedById], references: [id])
+  decidedAt      DateTime?
+  interviewAt    DateTime?
+  interviewNotes String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  notes          CaseNote[]
+
+  @@index([status, kind])
+  @@index([userId, kind])
+}
+
+model CaseNote {
+  id        String           @id @default(cuid())
+  caseId    String
+  case      VerificationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User             @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime         @default(now())
+
+  @@index([caseId])
+}
+
+// ─── Audit ────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

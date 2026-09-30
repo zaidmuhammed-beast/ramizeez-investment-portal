@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-ink-950: #060914;
+  --color-ink-900: #0a0f24;
+  --color-ink-800: #121a3a;
+
+  --color-brand-300: #6ee7c8;
+  --color-brand-400: #34d3a6;
+  --color-brand-500: #14b88a;
+  --color-brand-600: #0e9670;
+
+  --color-gold-300: #f7d98b;
+  --color-gold-400: #f0c35a;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-ink-950);
+  background-image:
+    radial-gradient(1200px 800px at 10% -10%, rgb(20 184 138 / 0.18), transparent 60%),
+    radial-gradient(1000px 700px at 110% 10%, rgb(124 58 237 / 0.22), transparent 60%),
+    radial-gradient(900px 700px at 50% 120%, rgb(14 165 233 / 0.16), transparent 60%),
+    linear-gradient(180deg, var(--color-ink-900), var(--color-ink-950));
+  background-attachment: fixed;
+  color: rgb(226 232 240);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .glass {
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.085), rgb(255 255 255 / 0.03));
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border: 1px solid rgb(255 255 255 / 0.11);
+    box-shadow:
+      0 10px 40px -10px rgb(0 0 0 / 0.5),
+      inset 0 1px 0 rgb(255 255 255 / 0.07);
+  }
+
+  .glass-strong {
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.05));
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid rgb(255 255 255 / 0.16);
+    box-shadow:
+      0 20px 60px -15px rgb(0 0 0 / 0.6),
+      inset 0 1px 0 rgb(255 255 255 / 0.1);
+  }
+
+  .field-control {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    background: rgb(255 255 255 / 0.04);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    color: rgb(241 245 249);
+    transition: border-color 150ms, background-color 150ms, box-shadow 150ms;
+  }
+  .field-control::placeholder {
+    color: rgb(148 163 184 / 0.7);
+  }
+  .field-control:hover {
+    border-color: rgb(255 255 255 / 0.2);
+  }
+  .field-control:focus {
+    outline: none;
+    border-color: var(--color-brand-400);
+    background: rgb(255 255 255 / 0.07);
+    box-shadow: 0 0 0 3px rgb(52 211 166 / 0.18);
+  }
+  .field-control[aria-invalid="true"] {
+    border-color: rgb(251 113 133 / 0.7);
+  }
+  select.field-control option {
+    background: var(--color-ink-800);
+  }
+
+  .orb {
+    position: fixed;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+::selection {
+  background: rgb(52 211 166 / 0.35);
+}

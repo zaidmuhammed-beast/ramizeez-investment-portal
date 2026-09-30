@@ -74,7 +74,7 @@ stateDiagram-v2
 
 **Outcome:** a high score means automatic approval. A medium score goes to the manual review queue in the Admin portal. Clear fraud means rejection and a blacklist entry.
 
-> **Recommended approach:** use a specialist KYC provider (for example Shufti Pro, which supports CNIC; or Sumsub, Veriff, or Onfido/Entrust) instead of building document forensics and liveness ourselves. We build the flow, the storage and the review tools around it.
+> **Decision:** during testing, identity checks run in-house: rule-based document, MRZ, duplicate and watchlist checks, with liveness judgement, face match and the NADRA lookup confirmed manually by a verification officer. The checks sit behind a `KycProvider` interface, so **Sumsub** can replace them for production without changing the flow. See the README for exactly what the in-house provider checks.
 
 ---
 
