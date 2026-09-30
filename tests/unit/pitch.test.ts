@@ -10,7 +10,7 @@ const long = (s: string, n = 160) => (s + " ").repeat(Math.ceil(n / (s.length + 
 /** A complete PKR 1,000,000 equity pitch: costs and milestones add up to the PKR 900,000 net. */
 function completePitch(overrides: Partial<PitchData> = {}): PitchData {
   return {
-    id: "p1", founderId: "u1", status: "DRAFT", type: "IDEA", savedSections: [],
+    id: "p1", founderId: "u1", status: "DRAFT", type: "IDEA", savedSections: [], confidentialFields: [],
     title: "Organic dairy delivery", sector: "Food & beverage", country: "PK", city: "Lahore",
     oneLiner: "Farm-fresh milk delivered daily to homes", problem: long("Families cannot trust the milk they buy"), solution: long("Traceable milk from our own farms"),
     whyNow: long("Rising food safety awareness", 40),

@@ -512,6 +512,57 @@ test("founder-investor onboarding, pitch submission and listing", async ({ brows
   await page.goto("/pitches");
   await expect(page.getByText("Listed", { exact: true })).toBeVisible();
 
+  // ── Phase 4: a verified investor discovers, unlocks and requests the pitch ──
+  const seeded = JSON.parse(process.env.E2E_INVESTOR!) as { email: string; password: string; secret: string; name: string };
+  const inv2 = await (await browser.newContext()).newPage();
+  await login(inv2, seeded.email, seeded.password, seeded.secret, new Set());
+  await expect(inv2).toHaveURL(/dashboard/);
+  const pitchId = pitchUrl.split("/").pop()!;
+  const ref = `RZ-${pitchId.slice(-6).toUpperCase()}`;
+  const businessName = () => inv2.getByRole("heading", { name: "Traceable dairy subscriptions" });
+  await inv2.goto("/opportunities");
+  await shot(inv2, "22-investor-opportunities");
+  await inv2.getByRole("link", { name: new RegExp(ref) }).click();
+  await expect(inv2.getByRole("heading", { name: "Unlock the summary" })).toBeVisible();
+  await expect(businessName()).toHaveCount(0);
+  await inv2.getByLabel("Type your full legal name to sign").fill(seeded.name);
+  await inv2.getByLabel(/I have read and agree/).check();
+  await inv2.getByRole("button", { name: /Sign NDA/ }).click();
+  await expect(inv2.getByTestId("secure-view")).toBeVisible();
+  await expect(inv2.getByText("Families in Lahore cannot trust", { exact: false }).first()).toBeVisible();
+  await expect(businessName()).toHaveCount(0);
+  await shot(inv2, "23-investor-summary");
+  await inv2.getByLabel(/How much do you intend to invest/).fill("200000");
+  await inv2.getByLabel(/Message to the founder/).fill("Keen on dairy. Email me at sara@example.com or call +44 7700 900123.");
+  await inv2.getByRole("button", { name: "Request full data-room access" }).click();
+  await expect(inv2.getByText(/Request sent: you intend to invest PKR 200,000/)).toBeVisible();
+
+  // The founder sees an anonymous request with contact details stripped, and approves it.
+  await page.goto(pitchUrl);
+  await expect(page.getByText("Intends to invest PKR 200,000")).toBeVisible();
+  await expect(page.getByText(/\[removed\]/)).toBeVisible();
+  await expect(page.getByText(/sara@example\.com|7700/)).toHaveCount(0);
+  await expect(page.getByText("Sara Qureshi")).toHaveCount(0);
+  await shot(page, "24-founder-investor-interest");
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page.getByText("approved", { exact: true })).toBeVisible();
+
+  // Full data room: business name revealed, documents served as watermarked PDFs.
+  await inv2.reload();
+  await expect(businessName().first()).toBeVisible();
+  const deckHref = (await inv2.getByRole("link", { name: /dairy-deck/ }).getAttribute("href"))!;
+  expect(deckHref).toContain(`/api/dataroom/${pitchId}/`);
+  const deck = await inv2.request.get(deckHref);
+  expect(deck.headers()["content-type"]).toBe("application/pdf");
+  const deckBody = await deck.body();
+  expect(deckBody.subarray(0, 5).toString()).toBe("%PDF-");
+  expect(deckBody.length).toBeGreaterThan(PDF.length);
+  await shot(inv2, "25-investor-data-room");
+  // Nobody else can fetch it — not even the founder through the investor route.
+  expect((await page.request.get(deckHref)).status()).toBe(404);
+  await page.reload();
+  await expect(page.getByText("Opened the data room")).toBeVisible();
+
   // ── Returning sign-in requires the authenticator code ──
   await page.getByRole("button", { name: "Sign out" }).click();
   await login(page, investor.email, investor.password, user2fa.secret, user2fa.used);

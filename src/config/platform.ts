@@ -56,3 +56,13 @@ export function feeBreakdown(raise: number) {
   const fee = Math.round((raise * PLATFORM_TERMS.successFeePercent) / 100);
   return { raise, fee, netToBusiness: raise - fee, businessSharePercent: PLATFORM_TERMS.businessSharePercent };
 }
+
+/** Idea-protection limits for investors, over a rolling 30 days. */
+export const INVESTOR_LIMITS = {
+  /** NDA-gated summaries an investor can unlock: Tier 3 vs RamiZeeZ Verified (Tier 4). */
+  summaryUnlocks: { tier3: 5, tier4: 10 },
+  /** Requests for full data-room access (Tier 4 only). */
+  fullAccessRequests: 5,
+  /** Flag investors who unlock this many summaries without expressing any interest. */
+  flagUnlocksWithoutInterest: 8,
+} as const;

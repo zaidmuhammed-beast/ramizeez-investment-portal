@@ -7,10 +7,10 @@ import { MIN_AMOUNT_PKR, PLATFORM_TERMS, formatMoney, minimumIn } from "@/config
 import { MAX_INVESTOR_EQUITY, costTotal, impliedPreMoney, matchesTarget, milestoneTotal, netOfFee, ownershipAfter, revenueShareTotal } from "@/lib/pitch/deal";
 import { COST_CATEGORIES, RISK_CATEGORIES } from "@/lib/pitch/sections";
 import { Button, SubmitButton } from "@/components/ui/button";
-import { Checkbox, Form, SelectField, TextArea, TextField, YesNo, useFormState } from "@/components/ui/form";
+import { Checkbox, CheckboxGroup, Form, SelectField, TextArea, TextField, YesNo, useFormState } from "@/components/ui/form";
 import { RepeaterForm, type RepeaterField } from "@/components/repeater-form";
 import { cn } from "@/components/ui/cn";
-import { removeFileAction, saveListAction, saveMediaAction, saveSectionAction, submitPitchAction } from "../actions";
+import { founderDecideAccessAction, removeFileAction, saveConfidentialityAction, saveListAction, saveMediaAction, saveSectionAction, submitPitchAction } from "../actions";
 
 type FieldSection = "overview" | "team" | "market" | "model" | "traction" | "ask" | "financials" | "risks";
 type ListSection = "team" | "costing" | "roadmap" | "risks" | "financials";
@@ -311,11 +311,11 @@ export function MediaForm({ pitchId, videoUrl, deck, images, documents }: { pitc
       </div>
       <div className="space-y-2">
         {list(images)}
-        <FilePicker name="images" label="Product or premises photos" accept="image/jpeg,image/png,image/webp" multiple hint="Up to 6 images." />
+        <FilePicker name="images" label="Product or premises photos" accept="image/jpeg,image/png" multiple hint="Up to 6 JPG or PNG images." />
       </div>
       <div className="space-y-2">
         {list(documents)}
-        <FilePicker name="documents" label="Supporting documents" accept="application/pdf,image/jpeg,image/png,image/webp" multiple hint="Quotations, invoices, licences, letters of intent. Up to 10 files." />
+        <FilePicker name="documents" label="Supporting documents" accept="application/pdf,image/jpeg,image/png" multiple hint="Quotations, invoices, licences, letters of intent. PDF, JPG or PNG, up to 10 files." />
       </div>
       <TextField
         name="videoUrl"
@@ -349,5 +349,45 @@ export function SubmitForm({ pitchId, disabled }: { pitchId: string; disabled: b
         Submit for screening
       </SubmitButton>
     </Form>
+  );
+}
+
+// ─── Confidentiality ──────────────────────────────────────────────────────────
+
+export function ConfidentialityForm({ pitchId, selected, options }: { pitchId: string; selected: string[]; options: { value: string; label: string }[] }) {
+  const [state, action] = useActionState(saveConfidentialityAction.bind(null, pitchId), initialFormState);
+  return (
+    <Form state={state} action={action}>
+      <p className="text-sm text-slate-300">
+        After signing an NDA, investors see a summary of your pitch. Tick anything they should see only once you, or RamiZeeZ, approve them for the full data room.
+        Your business name, your identity and your documents are always held back until then.
+      </p>
+      <CheckboxGroup name="confidentialFields" label="Hold back until full data-room approval" options={options} defaultValue={selected} />
+      <SubmitButton pendingText="Saving…">Save</SubmitButton>
+    </Form>
+  );
+}
+
+// ─── Investor access requests ─────────────────────────────────────────────────
+
+export function AccessDecisionButtons({ requestId }: { requestId: string }) {
+  const [pending, setPending] = useState(false);
+  const decide = async (approve: boolean) => {
+    setPending(true);
+    try {
+      await founderDecideAccessAction(requestId, approve);
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <div className="flex gap-2">
+      <Button type="button" className="px-3 py-1.5 text-xs" disabled={pending} onClick={() => decide(true)}>
+        Approve
+      </Button>
+      <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" disabled={pending} onClick={() => decide(false)}>
+        Decline
+      </Button>
+    </div>
   );
 }

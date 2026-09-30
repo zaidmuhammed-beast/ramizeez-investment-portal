@@ -12,6 +12,7 @@ export const PITCH_SECTIONS = [
   { key: "financials", label: "Financial projections", description: "Five years of revenue, costs and cash flow, with your assumptions." },
   { key: "risks", label: "Risks", description: "What could go wrong, what you will do about it, and what happens if it fails." },
   { key: "media", label: "Deck & media", description: "Pitch deck, product photos, supporting documents and a pitch video." },
+  { key: "confidentiality", label: "Confidentiality", description: "Optional: details that only investors you approve for the full data room will see." },
 ] as const;
 
 export type PitchSectionKey = (typeof PITCH_SECTIONS)[number]["key"];

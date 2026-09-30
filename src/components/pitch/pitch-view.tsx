@@ -30,7 +30,16 @@ function Stat({ label, value }: { label: string; value: ReactNode }) {
 
 type FileRow = { id: string; originalName: string | null; mimeType: string };
 
-export function PitchView({ pitch: p, files }: { pitch: PitchData; files: Record<string, FileRow> }) {
+export function PitchView({
+  pitch: p,
+  files,
+  fileHref = (id) => `/api/files/${id}`,
+}: {
+  pitch: PitchData;
+  files: Record<string, FileRow>;
+  /** Where file links point: investors get the watermarking data-room route. */
+  fileHref?: (fileId: string) => string;
+}) {
   const money = (v: number | null) => (v === null ? "—" : formatMoney(v, p.currency));
   const fee = p.amount !== null ? netOfFee(p.amount) : null;
   const own = ownershipAfter(p.dealType === "EQUITY" ? p.equityPercent : null);
@@ -243,7 +252,7 @@ export function PitchView({ pitch: p, files }: { pitch: PitchData; files: Record
             .filter((id): id is string => !!id && !!files[id])
             .map((id) => (
               <li key={id}>
-                <a href={`/api/files/${id}`} target="_blank" className="text-brand-300 hover:underline">
+                <a href={fileHref(id)} target="_blank" className="text-brand-300 hover:underline">
                   📎 {files[id].originalName ?? "file"}
                 </a>
                 {id === p.deckFileId && <Badge tone="violet" className="ml-2">Deck</Badge>}

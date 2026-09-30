@@ -12,6 +12,7 @@ import { recomputeTier } from "@/lib/onboarding";
 import { formValues, type FormState } from "@/lib/form-state";
 import { fieldErrors } from "@/lib/validation/common";
 import { PITCH_STATUS_LABEL } from "@/lib/pitch/sections";
+import { decideAccessRequest, notifyMatchingInvestors } from "@/lib/investor/decisions";
 import { DILIGENCE_ITEMS, TEAM_TRANSITIONS, scorePercent, transitionBlocker, type Diligence, type Scores } from "@/lib/pitch/workflow";
 
 async function loadPitch(pitchId: string) {
@@ -143,6 +144,17 @@ export async function transitionPitchAction(pitchId: string, _: FormState, fd: F
       `Hello ${pitch.founder.firstName}, your pitch "${pitch.title}" ${message}.${feedback} Sign in at ${env().APP_URL}/pitches/${pitch.id} for details.`,
     );
   }
+  const notified = to === "LISTED" ? await notifyMatchingInvestors(pitchId) : 0;
   refresh();
-  return { ok: true, message: `Moved to ${PITCH_STATUS_LABEL[to]}. The founder has been notified.` };
+  return {
+    ok: true,
+    message: `Moved to ${PITCH_STATUS_LABEL[to]}. The founder has been notified${to === "LISTED" ? `, and ${notified} matching investor(s) were emailed` : ""}.`,
+  };
+}
+
+export async function teamDecideAccessAction(requestId: string, approve: boolean) {
+  const me = await requireTeam("pitches.view");
+  if (!can(me, "pitches.screen") && !can(me, "pitches.approve")) return;
+  await decideAccessRequest({ requestId, actorId: me.id, as: "TEAM", approve, note: approve ? undefined : "Declined by RamiZeeZ" });
+  refresh();
 }

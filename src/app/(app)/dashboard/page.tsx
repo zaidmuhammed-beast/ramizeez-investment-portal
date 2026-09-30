@@ -92,8 +92,14 @@ export default async function DashboardPage() {
           </Card>
         )}
         {user.roles.includes("INVESTOR") && (
-          <Card title="Opportunities" description="Opens at Tier 3. Matched to your verified budget and preferences.">
-            <Badge tone="neutral">Coming soon</Badge>
+          <Card title="Opportunities" description="Opens at Tier 3. Screened businesses matched to your verified budget and preferences.">
+            {tier >= 3 ? (
+              <LinkButton href="/opportunities" variant="secondary">
+                Browse opportunities
+              </LinkButton>
+            ) : (
+              <Badge tone="neutral">Opens at Tier 3</Badge>
+            )}
           </Card>
         )}
       </div>

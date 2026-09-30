@@ -1,5 +1,18 @@
 # 4. Investor portal & idea protection
 
+> **Status: built (Phase 4).** How it was built:
+> - **Matching.** Hard rules: verified budget, accepted deal types, Shariah-only, and never your own pitch. Soft preferences: sector, stage and region. Investors can widen past their soft preferences.
+> - **Disclosure levels.**
+>   - **Teaser:** needs Tier 3.
+>   - **Summary:** unlocked by e-signing an NDA. The NDA is version-stamped, the exact text is hashed, and the typed name must match the verified legal name.
+>   - **Full data room:** needs Tier 4, plus an expression of interest between the pitch's minimum and the investor's verified budget, approved by the founder or RamiZeeZ.
+> - **Monthly limits, over a rolling 30 days.** Tier 3: 5 summaries. Tier 4: 10 summaries and 5 data-room requests.
+> - **Documents.** Every data-room document is served as a PDF stamped on every page with the viewer's name, investor ID, the reference and the time.
+> - **Messages.** Contact details are stripped from investor messages.
+> - **Misuse flags.** The team is shown investors who unlock 8 or more summaries, or 4 or more in one sector, without any request.
+> - **New listings.** Matching investors are emailed when a pitch is listed.
+> - **Legal text.** The NDA wording in `src/config/nda.ts` is a draft for RamiZeeZ's legal team.
+
 ## 4.1 What investors see: budget-based matching
 
 An investor sees a pitch only when **all** of these are true:

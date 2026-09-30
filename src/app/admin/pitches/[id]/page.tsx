@@ -15,7 +15,8 @@ import { TierBadge } from "@/components/tier-badge";
 import { PitchView } from "@/components/pitch/pitch-view";
 import { PitchStatusBadge } from "@/components/pitch/status-badge";
 import { assignPitchAction } from "../actions";
-import { DiligenceForm, ScorecardForm, TeaserForm, TransitionForm } from "./client";
+import { DiligenceForm, ScorecardForm, TeamAccessButtons, TeaserForm, TransitionForm } from "./client";
+import { InvestorInterest } from "@/components/pitch/investor-interest";
 
 export const metadata: Metadata = { title: "Pitch review" };
 
@@ -142,6 +143,13 @@ export default async function PitchReviewPage({ params }: PageProps<"/admin/pitc
             )
           )}
 
+          {pitch.status === "LISTED" && (
+            <InvestorInterest
+              pitchId={pitch.id}
+              audience="TEAM"
+              renderDecision={canScreen || can(me, "pitches.approve") ? (id) => <TeamAccessButtons requestId={id} /> : undefined}
+            />
+          )}
           {latest && (
             <Card title="Submission fingerprint" description={`Version ${latest.version} · terms ${latest.termsVersion} · ${latest.submittedAt.toUTCString()}`}>
               <code className="block break-all font-mono text-xs text-brand-200">{latest.fingerprint}</code>

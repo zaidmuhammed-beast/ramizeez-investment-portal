@@ -2,7 +2,7 @@
 
 A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (people with a startup idea or an existing business that needs capital) with **verified investors** in Pakistan, overseas Pakistanis and foreign investors. RamiZeeZ sits in the middle as the trusted intermediary. It verifies everyone, screens every pitch, protects founders' ideas, and manages agreements, execution and marketing once a deal closes.
 
-> **Status:** Phases 1–3 are built: secure accounts, the team portal, the full tiered verification (KYC) system, and the pitch builder with its screening pipeline. The investor portal and idea protection (Phase 4) are next.
+> **Status:** Phases 1–4 are built: secure accounts, the team portal, the full tiered verification (KYC) system, the pitch builder with its screening pipeline, and the investor portal with idea protection. Deals (Phase 5: Q&A, offers, agreements, escrow) are next.
 
 ## Design documents
 
@@ -32,6 +32,22 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
 - Deal terms with live maths for **Equity** (ownership preview including RamiZeeZ's 25%), **Musharakah**, **Mudarabah** and **Revenue share**.
 - The **costing and milestone budgets must add up to the raise minus the 10% fee**, with a running total against that target. Milestones become the future escrow release schedule.
 - A completeness checklist links to each open item. Submission requires Tier 2 and four declarations. It locks the pitch and stores a snapshot with a **SHA-256 fingerprint** as proof of authorship.
+
+**Investor portal (`/opportunities`)**
+- Listed pitches matched to each investor's **verified budget** (across currencies), accepted deal types and Shariah preference, ranked by fit and RamiZeeZ score, with a watchlist.
+- **Three disclosure levels:**
+  1. An anonymous teaser, with no name, founder or secret sauce.
+  2. A summary, after e-signing a deal-specific NDA.
+  3. The full data room, after an expression of interest that the founder or RamiZeeZ approves.
+- Founders can mark sensitive fields as data-room only.
+- **Anti-copy:**
+  - An on-screen watermark with the viewer's identity.
+  - Copy, right-click and print blocked.
+  - Every document served as a PDF **watermarked on every page** with the viewer's name and ID.
+  - Every view logged, and monthly unlock limits.
+  - Contact details stripped from messages.
+  - Misuse flags for the team.
+- Founders see anonymous interest stats and approve requests. Matching investors are emailed when a pitch is listed.
 
 **Pitch pipeline (`/admin/pitches`, team)**
 - A board showing Submitted → Screening → Due diligence → Committee → Listed.
@@ -118,9 +134,9 @@ The app checks this configuration at startup and refuses to run if a chosen prov
 
 ```bash
 npm run typecheck && npm run lint
-npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, encryption
+npm test                    # unit tests: TOTP (RFC 6238), MRZ (ICAO specimen), CNIC, name matching, identity, investor & founder checks, platform terms & minimums, email/SMS providers, pitch rules & workflow, investor matching, disclosure & watermarking, encryption
 npm run build && npm start  # then, in another terminal:
-npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, submitted, screened and listed
+npm run e2e                 # full journey in Chromium with a fake camera: sign-up → 2FA → T1–T4 → pitch built, screened, listed → investor NDA, request, approval, watermarked data room
 ```
 
 The E2E test seeds its own fresh super admin on every run. If you're using a pre-installed Chromium, set `E2E_CHROMIUM_PATH`. Set `E2E_SCREENSHOTS=<dir>` to save screenshots.
@@ -136,6 +152,7 @@ src/app/api/files/[id]      access-controlled, audited document delivery
 src/lib/auth/               sessions, passwords, TOTP, one-time codes, recovery codes, role permissions
 src/lib/kyc/                KYC provider interface, in-house checks, MRZ, CNIC, AML screening
 src/lib/pitch/              pitch completeness rules, deal maths, screening workflow, fingerprints
+src/lib/investor/           matching, disclosure levels, quotas & misuse flags, PDF watermarking, data-room access
 src/components/ui/          glassmorphism design system (cards, forms, badges, buttons)
 tests/unit, tests/e2e       Vitest and Playwright
 ```

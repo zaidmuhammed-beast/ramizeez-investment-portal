@@ -27,6 +27,8 @@ export async function saveFile(opts: {
   file: File;
   liveCapture?: boolean;
   allow: ("image" | "pdf")[];
+  /** Optional narrower list of accepted types, e.g. only JPEG/PNG. */
+  mimes?: string[];
 }): Promise<StoredFile> {
   const { file } = opts;
   if (file.size === 0) throw new FileRejected("The file is empty");
@@ -37,6 +39,9 @@ export async function saveFile(opts: {
   const okPdf = opts.allow.includes("pdf") && mime === "application/pdf";
   if (!mime || !(okImage || okPdf)) {
     throw new FileRejected(opts.allow.includes("pdf") ? "Upload a JPG, PNG, WebP or PDF file" : "Upload a JPG, PNG or WebP image");
+  }
+  if (opts.mimes && !opts.mimes.includes(mime)) {
+    throw new FileRejected(`This file type isn't accepted here. Use ${opts.mimes.map((m) => m.split("/")[1].toUpperCase()).join(", ")}.`);
   }
 
   const storageKey = randomToken(24);

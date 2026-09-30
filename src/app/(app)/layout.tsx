@@ -16,11 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <AppNav
             items={[
               { href: "/dashboard", label: "Dashboard" },
-              { href: "/onboarding/identity", label: "Identity" },
-              { href: "/onboarding/profile", label: "Profile" },
-              { href: "/onboarding/role", label: "Role verification" },
-              { href: "/onboarding/final", label: "Final approval" },
+              { href: "/onboarding/identity", label: "Verification", match: "/onboarding" },
               ...(user.roles.includes("FOUNDER") ? [{ href: "/pitches", label: "Pitches" }] : []),
+              ...(user.roles.includes("INVESTOR") ? [{ href: "/opportunities", label: "Opportunities" }] : []),
             ]}
           />
           <div className="flex items-center gap-3">

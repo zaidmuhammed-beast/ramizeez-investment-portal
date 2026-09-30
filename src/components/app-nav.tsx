@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "./ui/cn";
 
-export function AppNav({ items }: { items: { href: string; label: string }[] }) {
+/** `match` marks the item active for every path under that prefix (defaults to `href`). */
+export function AppNav({ items, className }: { items: { href: string; label: string; match?: string }[]; className?: string }) {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto">
+    <nav className={cn("flex gap-1 overflow-x-auto", className)}>
       {items.map((item) => {
-        const active = item.href === "/admin" || item.href === "/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
+        const active = item.href === "/admin" || item.href === "/dashboard" ? pathname === item.href : pathname.startsWith(item.match ?? item.href);
         return (
           <Link
             key={item.href}

@@ -91,6 +91,11 @@ model User {
   assignedPitches   Pitch[]               @relation("PitchAssignee")
   pitchReviews      PitchReview[]
   pitchEvents       PitchEvent[]
+  ndaSignatures     NdaSignature[]
+  accessRequests    AccessRequest[]       @relation("AccessRequester")
+  accessDecisions   AccessRequest[]       @relation("AccessDecider")
+  pitchViews        PitchViewLog[]
+  watchlist         WatchlistItem[]
 }
 
 enum SessionStage {
@@ -552,12 +557,14 @@ enum PitchStatus {
 }
 
 model Pitch {
-  id            String      @id @default(cuid())
-  founderId     String
-  founder       User        @relation("PitchFounder", fields: [founderId], references: [id], onDelete: Cascade)
-  status        PitchStatus @default(DRAFT)
-  type          PitchType   @default(IDEA)
-  savedSections String[]
+  id                 String      @id @default(cuid())
+  founderId          String
+  founder            User        @relation("PitchFounder", fields: [founderId], references: [id], onDelete: Cascade)
+  status             PitchStatus @default(DRAFT)
+  type               PitchType   @default(IDEA)
+  savedSections      String[]
+  // Fields hidden from the NDA summary and shown only in the approved full data room.
+  confidentialFields String[]
 
   // Overview
   title    String
@@ -639,11 +646,15 @@ model Pitch {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  costItems   PitchCostItem[]
-  milestones  PitchMilestone[]
-  submissions PitchSubmission[]
-  reviews     PitchReview[]
-  events      PitchEvent[]
+  costItems      PitchCostItem[]
+  milestones     PitchMilestone[]
+  submissions    PitchSubmission[]
+  reviews        PitchReview[]
+  events         PitchEvent[]
+  ndaSignatures  NdaSignature[]
+  accessRequests AccessRequest[]
+  views          PitchViewLog[]
+  watchers       WatchlistItem[]
 
   @@index([founderId])
   @@index([status])
@@ -727,6 +738,88 @@ model PitchEvent {
   createdAt  DateTime     @default(now())
 
   @@index([pitchId])
+}
+
+// ─── Investor portal (Phase 4) ────────────────────────────────────────────────
+
+/// Deal-specific NDA e-signed by an investor to unlock a pitch summary.
+model NdaSignature {
+  id         String   @id @default(cuid())
+  pitchId    String
+  pitch      Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId String
+  investor   User     @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  version    String
+  typedName  String
+  textHash   String // SHA-256 of the exact NDA text shown
+  signedAt   DateTime @default(now())
+  ip         String?
+  userAgent  String?
+
+  @@unique([pitchId, investorId])
+  @@index([investorId, signedAt])
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  WITHDRAWN
+}
+
+/// An investor's expression of interest, asking for the full data room.
+model AccessRequest {
+  id             String              @id @default(cuid())
+  pitchId        String
+  pitch          Pitch               @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId     String
+  investor       User                @relation("AccessRequester", fields: [investorId], references: [id], onDelete: Cascade)
+  intendedAmount Decimal             @db.Decimal(18, 2)
+  currency       String
+  message        String?
+  status         AccessRequestStatus @default(PENDING)
+  decidedById    String?
+  decidedBy      User?               @relation("AccessDecider", fields: [decidedById], references: [id])
+  decidedAs      String? // FOUNDER | TEAM
+  decisionNote   String?
+  decidedAt      DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@unique([pitchId, investorId])
+  @@index([investorId, createdAt])
+}
+
+enum ViewLevel {
+  TEASER
+  SUMMARY
+  FULL
+  FILE
+}
+
+/// Every investor view of a pitch, for founders' analytics and misuse detection.
+model PitchViewLog {
+  id         String    @id @default(cuid())
+  pitchId    String
+  pitch      Pitch     @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId String
+  investor   User      @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  level      ViewLevel
+  fileId     String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([pitchId, level])
+  @@index([investorId, createdAt])
+}
+
+model WatchlistItem {
+  investorId String
+  investor   User     @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  pitchId    String
+  pitch      Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([investorId, pitchId])
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────

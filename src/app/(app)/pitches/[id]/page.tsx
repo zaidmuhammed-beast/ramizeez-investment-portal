@@ -18,7 +18,9 @@ import { PitchView } from "@/components/pitch/pitch-view";
 import { PitchStatusBadge } from "@/components/pitch/status-badge";
 import { cn } from "@/components/ui/cn";
 import { withdrawPitchAction } from "../actions";
-import { AskForm, ListForm, MediaForm, SectionForm, SubmitForm } from "./forms";
+import { AccessDecisionButtons, AskForm, ConfidentialityForm, ListForm, MediaForm, SectionForm, SubmitForm } from "./forms";
+import { InvestorInterest } from "@/components/pitch/investor-interest";
+import { CONFIDENTIAL_CANDIDATES } from "@/lib/investor/disclosure";
 
 export const metadata: Metadata = { title: "Pitch builder" };
 
@@ -132,6 +134,9 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
                 ))}
               </ol>
             </Card>
+            {pitch.status === "LISTED" && (
+              <InvestorInterest pitchId={pitch.id} audience="FOUNDER" renderDecision={(id) => <AccessDecisionButtons requestId={id} />} />
+            )}
             {latest && <FingerprintCard version={latest.version} fingerprint={latest.fingerprint} submittedAt={latest.submittedAt} />}
           </aside>
         </div>
@@ -412,6 +417,10 @@ function SectionContent({
           images={p.imageFileIds.map((id) => files[id]).filter(Boolean)}
           documents={p.documentFileIds.map((id) => files[id]).filter(Boolean)}
         />
+      );
+    case "confidentiality":
+      return (
+        <ConfidentialityForm pitchId={pitchId} selected={p.confidentialFields} options={CONFIDENTIAL_CANDIDATES.map(([value, label]) => ({ value, label }))} />
       );
     default:
       return null;

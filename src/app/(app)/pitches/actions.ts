@@ -21,6 +21,8 @@ import { pitchIssues } from "@/lib/pitch/completeness";
 import { fingerprint, submissionSnapshot } from "@/lib/pitch/fingerprint";
 import { COST_CATEGORIES, RISK_CATEGORIES } from "@/lib/pitch/sections";
 import { FOUNDER_EDITABLE, FOUNDER_WITHDRAWABLE } from "@/lib/pitch/workflow";
+import { CONFIDENTIAL_CANDIDATES } from "@/lib/investor/disclosure";
+import { decideAccessRequest } from "@/lib/investor/decisions";
 
 const MAX_ACTIVE_PITCHES = 5;
 const MAX_IMAGES = 6;
@@ -300,7 +302,9 @@ export async function saveMediaAction(pitchId: string, _: FormState, fd: FormDat
   if (pitch.imageFileIds.length + images.length > MAX_IMAGES) return { errors: { images: `Up to ${MAX_IMAGES} images` } };
   if (pitch.documentFileIds.length + docs.length > MAX_DOCUMENTS) return { errors: { documents: `Up to ${MAX_DOCUMENTS} documents` } };
 
-  const store = (file: File, kind: FileKind, allow: ("image" | "pdf")[]) => saveFile({ ownerId: user.id, kind, file, allow });
+  // JPEG/PNG/PDF only: the investor data room re-renders every file as a watermarked PDF.
+  const mimes = ["image/jpeg", "image/png", "application/pdf"];
+  const store = (file: File, kind: FileKind, allow: ("image" | "pdf")[]) => saveFile({ ownerId: user.id, kind, file, allow, mimes });
   let deckId = pitch.deckFileId;
   const imageIds = [...pitch.imageFileIds];
   const docIds = [...pitch.documentFileIds];
@@ -382,3 +386,24 @@ export async function submitPitchAction(pitchId: string, _: FormState, fd: FormD
   redirect(`/pitches/${pitch.id}?s=submit`);
 }
 
+
+// ─── Confidentiality & investor access ────────────────────────────────────────
+
+export async function saveConfidentialityAction(pitchId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const pitch = await editablePitch(user, pitchId);
+  if (!pitch) return LOCKED;
+  const allowed = new Set<string>(CONFIDENTIAL_CANDIDATES.map(([k]) => k));
+  const fields = fd.getAll("confidentialFields").map(String).filter((f) => allowed.has(f));
+  await db.pitch.update({ where: { id: pitch.id }, data: { confidentialFields: fields, savedSections: markSaved(pitch.savedSections, "confidentiality") } });
+  refresh();
+  return { ok: true, message: "Saved." };
+}
+
+export async function founderDecideAccessAction(requestId: string, approve: boolean) {
+  const user = await requireUser();
+  const req = await db.accessRequest.findUnique({ where: { id: requestId }, select: { pitch: { select: { founderId: true } } } });
+  if (!req || req.pitch.founderId !== user.id) return;
+  await decideAccessRequest({ requestId, actorId: user.id, as: "FOUNDER", approve });
+  refresh();
+}

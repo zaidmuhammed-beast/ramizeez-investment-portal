@@ -11,4 +11,8 @@ export default function globalSetup() {
   });
   process.env.E2E_ADMIN_EMAIL = email;
   process.env.E2E_ADMIN_PASSWORD = password;
+
+  // A second, already verified investor to browse the founder's listed pitch.
+  const out = execFileSync("npx", ["tsx", "--env-file=.env", "tests/e2e/seed-investor.ts"], { encoding: "utf8" });
+  process.env.E2E_INVESTOR = out.trim().split("\n").at(-1);
 }

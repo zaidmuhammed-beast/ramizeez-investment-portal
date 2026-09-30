@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { initialFormState } from "@/lib/form-state";
 import { DILIGENCE_ITEMS, SCORE_CRITERIA, type Diligence } from "@/lib/pitch/workflow";
-import { SubmitButton } from "@/components/ui/button";
+import { Button, SubmitButton } from "@/components/ui/button";
 import { Checkbox, Form, SelectField, TextArea, type Option } from "@/components/ui/form";
-import { saveDiligenceAction, saveScorecardAction, saveTeaserAction, transitionPitchAction } from "../actions";
+import { saveDiligenceAction, saveScorecardAction, saveTeaserAction, teamDecideAccessAction, transitionPitchAction } from "../actions";
 
 const SCORE_OPTIONS: Option[] = [
   { value: "1", label: "1: Weak" },
@@ -75,5 +75,27 @@ export function TransitionForm({ pitchId, options }: { pitchId: string; options:
         Confirm
       </SubmitButton>
     </Form>
+  );
+}
+
+export function TeamAccessButtons({ requestId }: { requestId: string }) {
+  const [pending, setPending] = useState(false);
+  const decide = async (approve: boolean) => {
+    setPending(true);
+    try {
+      await teamDecideAccessAction(requestId, approve);
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <div className="flex gap-2">
+      <Button type="button" className="px-3 py-1.5 text-xs" disabled={pending} onClick={() => decide(true)}>
+        Approve access
+      </Button>
+      <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" disabled={pending} onClick={() => decide(false)}>
+        Decline
+      </Button>
+    </div>
   );
 }

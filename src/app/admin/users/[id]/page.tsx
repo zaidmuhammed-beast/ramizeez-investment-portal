@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { can, requireTeam } from "@/lib/auth/rbac";
 import { KIND_LABEL } from "@/lib/case-labels";
+import { activityFlags, windowStart } from "@/lib/investor/activity";
 import { countryName } from "@/lib/countries";
 import { Card, PageHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -30,6 +31,13 @@ export default async function UserPage({ params }: PageProps<"/admin/users/[id]"
   await audit("user.viewed", { actorId: me.id, targetType: "User", targetId: u.id });
 
   const canViewFiles = can(me, "kyc.files.view");
+  const since = windowStart();
+  const [recentNdas, recentRequests, fileViews] = await Promise.all([
+    db.ndaSignature.findMany({ where: { investorId: u.id, signedAt: { gte: since } }, select: { pitch: { select: { sector: true } } } }),
+    db.accessRequest.count({ where: { investorId: u.id, createdAt: { gte: since } } }),
+    db.pitchViewLog.count({ where: { investorId: u.id, level: "FILE", createdAt: { gte: since } } }),
+  ]);
+  const flags = activityFlags({ unlocks: recentNdas.map((n) => ({ sector: n.pitch.sector })), requests: recentRequests });
   const fileIds = [...(u.investorProfile?.proofOfFundsIds ?? []), ...(u.investorProfile?.entityDocumentIds ?? []), ...(u.founderProfile?.documentIds ?? [])];
   const files = Object.fromEntries(
     (await db.storedFile.findMany({ where: { id: { in: fileIds } }, select: { id: true, originalName: true, kind: true } })).map((f) => [f.id, f]),
@@ -101,6 +109,20 @@ export default async function UserPage({ params }: PageProps<"/admin/users/[id]"
               {!u.amlScreenings.length && <li className="text-slate-500">Not screened yet.</li>}
             </ul>
           </Card>
+          {u.roles.includes("INVESTOR") && (
+            <Card title="Investor activity (30 days)">
+              <ul className="space-y-1 text-sm text-slate-300">
+                <li>Summaries unlocked (NDAs): {recentNdas.length}</li>
+                <li>Data-room requests: {recentRequests}</li>
+                <li>Data-room document views: {fileViews}</li>
+              </ul>
+              {flags.map((f) => (
+                <p key={f} className="mt-2 text-xs text-amber-300">
+                  ⚠ {f}
+                </p>
+              ))}
+            </Card>
+          )}
           {can(me, "users.suspend") && (
             <Card title="Account status">
               <UserStatusForm userId={u.id} status={u.status} reason={u.statusReason} />

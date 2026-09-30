@@ -41,7 +41,7 @@
 | **1: Foundation** ✅ | Project setup, design system, auth (OTP + 2FA/passkey), roles, admin login, audit log | Secure accounts for all 3 user types |
 | **2: Verification** ✅ | Tiers 0–4, KYC provider integration, deep profile forms, verification queue, AML screening | Only verified users on the platform |
 | **3: Pitching** ✅ | Pitch builder (all sections, costing table, roadmap), drafts, submission, screening pipeline | Founders can submit, the team can screen |
-| **4: Investor portal** | Investor profile & verified budget, matching, blind teasers, NDA e-sign, secure viewer & watermarking, unlock quotas | Investors browse safely |
+| **4: Investor portal** ✅ | Investor profile & verified budget, matching, blind teasers, NDA e-sign, secure viewer & watermarking, unlock quotas | Investors browse safely |
 | **5: Deals** | Q&A, offers, term sheets, agreements, e-signature, escrow & milestone tracking | Deals close on the platform |
 | **6: Tank & growth** | Live pitch sessions, execution and marketing module, investor reports, mobile app, Urdu language | The full Shark Tank experience |
 
