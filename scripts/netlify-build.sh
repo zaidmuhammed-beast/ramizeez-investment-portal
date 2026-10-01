@@ -54,4 +54,8 @@ if [ -n "${DEMO_USERS_PASSWORD:-}" ]; then
   echo "Creating demo accounts (remove DEMO_USERS_PASSWORD once they exist)"
   npx tsx prisma/seed-demo.ts
 fi
+if [ -n "${DEMO_SCENARIOS:-}" ]; then
+  echo "Demo scenarios: ${DEMO_SCENARIOS} (fictional businesses, deals and Tank sessions)"
+  npx tsx prisma/seed-scenarios.ts
+fi
 npx next build
