@@ -329,8 +329,14 @@ async function main() {
   if (mode === "reset" || mode === "remove") await removeScenarios();
   if (mode === "remove") return;
   if (await db.user.findUnique({ where: { email: MARKER } })) {
-    console.log("Demo scenarios already exist, left unchanged (set DEMO_SCENARIOS=reset to recreate them).");
-    return;
+    // The past Tank session is created last, so its presence means an earlier run finished.
+    const finished = await db.tankSession.findFirst({ where: { title: "Food & dairy Tank", pitches: { some: { pitch: { founder: { email: { endsWith: `@${DOMAIN}` } } } } } } });
+    if (finished) {
+      console.log("Demo scenarios already exist, left unchanged (set DEMO_SCENARIOS=reset to recreate them).");
+      return;
+    }
+    console.log("Found incomplete demo data from an earlier run that stopped partway: recreating it.");
+    await removeScenarios();
   }
   if (key().length !== 32) throw new Error("DATA_ENCRYPTION_KEY must be set to create the demo Tank sessions");
   unusableHash = await hash(randomBytes(32).toString("hex"), { memoryCost: 19456, timeCost: 2, parallelism: 1 });
