@@ -77,7 +77,13 @@ export default async function PitchBuilderPage({ params, searchParams }: PagePro
   const header = (
     <PageHeader
       title={pitch.title}
-      description={editable ? "Fill in each section. Every save is a draft, and nothing is shared until you submit." : "Submitted pitches are locked while RamiZeeZ reviews them."}
+      description={
+        editable
+          ? "Fill in each section. Every save is a draft, and nothing is shared until you submit."
+          : pitch.status === "LISTED"
+            ? "Listed: matched investors can see the anonymous teaser. Offers, questions and agreements are in the deal room."
+            : "Submitted pitches are locked while RamiZeeZ reviews them."
+      }
       actions={
         <div className="flex flex-wrap items-center gap-3">
           <PitchStatusBadge status={pitch.status} />

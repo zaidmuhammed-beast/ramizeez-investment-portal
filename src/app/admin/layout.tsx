@@ -30,7 +30,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Logo href="/admin" subtitle={false} />
             <Badge tone="violet">Team portal</Badge>
           </div>
-          <AppNav items={NAV.filter((n) => !n.permission || can(user, n.permission))} />
+          {/* Many sections: on phones the menu scrolls sideways, with a fade showing there's more. */}
+          <AppNav
+            items={NAV.filter((n) => !n.permission || can(user, n.permission))}
+            className="order-last w-full [mask-image:linear-gradient(to_right,black_85%,transparent)] lg:order-none lg:w-auto lg:[mask-image:none]"
+          />
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-white">

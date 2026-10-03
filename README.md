@@ -110,7 +110,7 @@ A RamiZeeZ-backed platform, run like Shark Tank, that connects **founders** (peo
 - **Still in English:** the KYC forms, the pitch builder, the investor portal, deals and the team portal.
 - The choice is remembered on the device and on the account.
 - **Installable app (PWA):** add it to the home screen on Android and iPhone, or install it on desktop, with app icons and shortcuts. The service worker only provides an offline page. It never stores pages or files with personal or deal data.
-- Checked at phone width (390 px) with no sideways scrolling on the key pages.
+- On phones, applicants get a bottom tab bar like a native app, and the header shrinks to one row. Checked across 41 screens for every role at phone width: no sideways scrolling, and finger-sized tap targets.
 
 **Team portal (`/admin`)**
 - A verification queue (oldest first) with each automated check's result, the ID images, the liveness frames next to their prompts, address proof, AML hits, internal notes, assignment and case history.

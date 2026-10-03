@@ -75,7 +75,7 @@ export default async function DashboardPage() {
             <p className="mt-3 text-sm text-slate-400">{c.body}</p>
             {c.status !== "locked" && (
               <Link href={c.href} className="mt-4 inline-block text-sm font-medium text-brand-300 hover:text-brand-200">
-                {c.status === "done" || c.status === "in_review" ? t.view : t.start} ←
+                {c.status === "done" || c.status === "in_review" ? t.view : t.start} <span aria-hidden className="inline-block rtl:rotate-180">→</span>
               </Link>
             )}
           </Card>

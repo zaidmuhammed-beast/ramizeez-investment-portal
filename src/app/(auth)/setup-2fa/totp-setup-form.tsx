@@ -45,7 +45,7 @@ export function TotpSetupForm({ qr, secret, next, t }: { qr: string; secret: str
             {t.copy}
           </Button>
         </div>
-        <label className="flex items-center gap-3 text-sm text-slate-300">
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-300">
           <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} className="size-4 accent-brand-400" />
           {t.stored}
         </label>
